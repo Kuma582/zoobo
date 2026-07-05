@@ -1,0 +1,267 @@
+[
+  {
+    "id": "u1",
+    "username": "NeonNinja",
+    "password": "password123",
+    "avatar": "https://i.pravatar.cc/150?u=u1",
+    "level": 99,
+    "vip": "VIP 1",
+    "wallet": {
+      "balance": 5000,
+      "transactions": []
+    }
+  },
+  {
+    "id": "u_1783271727161",
+    "username": "anmolsharma8783@gmail.com",
+    "password": "admin@123",
+    "avatar": "https://i.pravatar.cc/150?u=1783271727161",
+    "level": 1,
+    "vip": "Bronze",
+    "wallet": {
+      "balance": 5004,
+      "transactions": [
+        {
+          "id": "tx_1783272741576",
+          "type": "deposit",
+          "amount": 500,
+          "status": "Success",
+          "date": "2026-07-05T17:32:21.576Z",
+          "reference": "Self Deposit"
+        },
+        {
+          "id": "tx_1783272719855",
+          "type": "deposit",
+          "amount": 100,
+          "status": "Success",
+          "date": "2026-07-05T17:31:59.855Z",
+          "reference": "Self Deposit"
+        },
+        {
+          "id": "tx_1783272579833",
+          "type": "game_fee",
+          "amount": 200,
+          "status": "Success",
+          "date": "2026-07-05T17:29:39.833Z",
+          "reference": "Entry: Poker CALL"
+        },
+        {
+          "id": "tx_1783272574201",
+          "type": "game_fee",
+          "amount": 200,
+          "status": "Success",
+          "date": "2026-07-05T17:29:34.201Z",
+          "reference": "Entry: Poker RAISE"
+        },
+        {
+          "id": "tx_1783272570850",
+          "type": "game_fee",
+          "amount": 100,
+          "status": "Success",
+          "date": "2026-07-05T17:29:30.850Z",
+          "reference": "Entry: Poker CALL"
+        },
+        {
+          "id": "tx_1783272406319",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:26:46.319Z",
+          "reference": "Entry: Aviator Bet 1"
+        },
+        {
+          "id": "tx_1783272404737",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:26:44.737Z",
+          "reference": "Entry: Aviator"
+        },
+        {
+          "id": "tx_1783272365748",
+          "type": "game_fee",
+          "amount": 50,
+          "status": "Success",
+          "date": "2026-07-05T17:26:05.748Z",
+          "reference": "Entry: Neon Numbers Bet (33)"
+        },
+        {
+          "id": "tx_1783272358402",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:25:58.402Z",
+          "reference": "Entry: Neon Numbers"
+        },
+        {
+          "id": "tx_1783272350575",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:25:50.575Z",
+          "reference": "Entry: Neon Numbers"
+        },
+        {
+          "id": "tx_1783272336646",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:25:36.646Z",
+          "reference": "Entry: Aviator"
+        },
+        {
+          "id": "tx_1783272321893",
+          "type": "deposit",
+          "amount": 5000,
+          "status": "Success",
+          "date": "2026-07-05T17:25:21.893Z",
+          "reference": "Self Deposit"
+        },
+        {
+          "id": "tx_1783272261363",
+          "type": "game_fee",
+          "amount": 2,
+          "status": "Success",
+          "date": "2026-07-05T17:24:21.363Z",
+          "reference": "Entry: Aviator Bet 1"
+        },
+        {
+          "id": "tx_1783272232282",
+          "type": "deposit",
+          "amount": 3,
+          "status": "Success",
+          "date": "2026-07-05T17:23:52.282Z",
+          "reference": "Self Deposit"
+        },
+        {
+          "id": "tx_1783272227411",
+          "type": "game_fee",
+          "amount": 2,
+          "status": "Success",
+          "date": "2026-07-05T17:23:47.411Z",
+          "reference": "Entry: Aviator Bet 1"
+        },
+        {
+          "id": "tx_1783272187829",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:23:07.829Z",
+          "reference": "Entry: Aviator Bet 1"
+        },
+        {
+          "id": "tx_1783272175553",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:22:55.553Z",
+          "reference": "Entry: Aviator Bet 1"
+        },
+        {
+          "id": "tx_1783272146270",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:22:26.270Z",
+          "reference": "Entry: Aviator Bet 1"
+        },
+        {
+          "id": "tx_1783272133462",
+          "type": "deposit",
+          "amount": 23,
+          "status": "Success",
+          "date": "2026-07-05T17:22:13.462Z",
+          "reference": "Self Deposit"
+        },
+        {
+          "id": "tx_1783272124193",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:22:04.193Z",
+          "reference": "Entry: Aviator Bet 1"
+        },
+        {
+          "id": "tx_1783272107001",
+          "type": "deposit",
+          "amount": 12,
+          "status": "Success",
+          "date": "2026-07-05T17:21:47.001Z",
+          "reference": "Self Deposit"
+        },
+        {
+          "id": "tx_1783272104399",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:21:44.399Z",
+          "reference": "Entry: Aviator Bet 1"
+        },
+        {
+          "id": "tx_1783272089351",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:21:29.351Z",
+          "reference": "Entry: Aviator Bet 1"
+        },
+        {
+          "id": "tx_1783272087702",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:21:27.702Z",
+          "reference": "Entry: Aviator"
+        },
+        {
+          "id": "tx_1783272044224",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:20:44.224Z",
+          "reference": "Entry: Neon Win Go"
+        },
+        {
+          "id": "tx_1783271931782",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:18:51.782Z",
+          "reference": "Entry: Neon Win Go"
+        },
+        {
+          "id": "tx_1783271921535",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:18:41.535Z",
+          "reference": "Entry: Neon Win Go"
+        },
+        {
+          "id": "tx_1783271917758",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:18:37.758Z",
+          "reference": "Entry: Neon Win Go"
+        },
+        {
+          "id": "tx_1783271917632",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:18:37.632Z",
+          "reference": "Entry: Neon Win Go"
+        },
+        {
+          "id": "tx_1783271905048",
+          "type": "game_fee",
+          "amount": 10,
+          "status": "Success",
+          "date": "2026-07-05T17:18:25.048Z",
+          "reference": "Entry: Neon Numbers"
+        }
+      ]
+    }
+  }
+]

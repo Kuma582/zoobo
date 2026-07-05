@@ -1,0 +1,18 @@
+{
+  "name": "ZOOBO Casino",
+  "short_name": "ZOOBO",
+  "description": "Premium Cyberpunk Gaming Platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#b14bf4",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
