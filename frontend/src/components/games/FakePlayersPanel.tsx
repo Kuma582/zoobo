@@ -65,7 +65,9 @@ export const FakePlayersPanel = ({
       const newEntry = generateEntry(showMultiplier);
       setEntries(prev => [newEntry, ...prev].slice(0, maxVisible));
     }, 1200 + Math.random() * 800);
-    return () => clearInterval(timerRef.current);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, [showMultiplier, maxVisible]);
 
   return (
