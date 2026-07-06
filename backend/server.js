@@ -40,10 +40,14 @@ const activeUsers = new Map(); // userId -> lastSeenTimestamp
 
 app.post('/api/auth/register', (req, res) => {
   try {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) return res.status(400).json({ error: 'Missing fields' });
 
     const trimmed = username.trim();
+    const emailTrimmed = email.trim();
+
+    // Email validation
+    if (!/^\S+@\S+\.\S+$/.test(emailTrimmed)) return res.status(400).json({ error: 'Invalid email address.' });
 
     // Username validation
     if (trimmed.length < 3) return res.status(400).json({ error: 'Username must be at least 3 characters long.' });
@@ -62,6 +66,7 @@ app.post('/api/auth/register', (req, res) => {
     const newUser = {
       id: `u_${Date.now()}`,
       username: trimmed,
+      email: emailTrimmed,
       password,
       avatar: `https://i.pravatar.cc/150?u=${Date.now()}`,
       level: 1,

@@ -8,13 +8,18 @@ const getHeaders = () => {
   };
 };
 
-export const registerUser = async (username, password) => {
+export const registerUser = async (username, email, password) => {
   const res = await fetch(`${BASE_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ username, email, password })
   });
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (e) {
+    throw new Error('Server is currently offline or deploying. Please try again in a minute.');
+  }
   if (!res.ok) throw new Error(data.error || 'Failed to register');
   return data;
 };

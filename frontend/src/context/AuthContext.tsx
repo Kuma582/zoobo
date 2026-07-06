@@ -14,7 +14,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (u: string, p: string) => Promise<void>;
-  register: (u: string, p: string) => Promise<void>;
+  register: (u: string, e: string, p: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -62,8 +62,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     navigate('/');
   };
 
-  const register = async (username: string, password: string) => {
-    const data = await registerUser(username, password);
+  const register = async (username: string, email: string, password: string) => {
+    const data = await registerUser(username, email, password);
     if (!data?.user?.id) throw new Error('Invalid response from server. Please try again.');
     localStorage.setItem('zoobo_token', data.user.id);
     setUser(data.user);

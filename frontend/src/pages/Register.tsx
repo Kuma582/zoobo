@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Gamepad2, Lock, User, ArrowRight, Loader2, Eye, EyeOff, CheckCircle2, WifiOff } from 'lucide-react';
+import { Gamepad2, Lock, User, Mail, ArrowRight, Loader2, Eye, EyeOff, CheckCircle2, WifiOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const Register = () => {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -54,6 +55,11 @@ const Register = () => {
       setError('Password must be at least 4 characters long.');
       return;
     }
+    const emailTrimmed = email.trim();
+    if (!/^\S+@\S+\.\S+$/.test(emailTrimmed)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
     if (password !== confirmPassword) {
       setError('Passwords do not match. Please check and try again.');
       return;
@@ -61,7 +67,7 @@ const Register = () => {
 
     setLoading(true);
     try {
-      await register(trimmedUsername, password);
+      await register(trimmedUsername, emailTrimmed, password);
     } catch (err: any) {
       const msg = err.message || '';
       if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('networkerror') || msg.toLowerCase().includes('load')) {
@@ -139,6 +145,29 @@ const Register = () => {
               )}
             </div>
             <p className="text-[10px] text-gray-600 mt-1 pl-1">3-20 characters, only letters, numbers and underscore</p>
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+              Email Address
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-3.5 w-5 h-5 text-gray-500 pointer-events-none" />
+              <input
+                id="register-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+                className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-cyber-pink transition-colors placeholder:text-gray-600"
+                placeholder="you@example.com"
+              />
+              {/^\S+@\S+\.\S+$/.test(email) && (
+                <CheckCircle2 className="absolute right-4 top-3.5 w-5 h-5 text-green-500" />
+              )}
+            </div>
           </div>
 
           {/* Password */}
