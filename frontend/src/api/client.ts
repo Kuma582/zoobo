@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://zoobo.onrender.com/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://zoobo-backend-production.up.railway.app/api';
 
 const getHeaders = () => {
   const token = localStorage.getItem('zoobo_token');
@@ -30,7 +30,12 @@ export const loginUser = async (username, password) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password })
   });
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (e) {
+    throw new Error('Server is currently offline or deploying. Please try again in a minute.');
+  }
   if (!res.ok) throw new Error(data.error || 'Failed to login');
   return data;
 };
