@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Clock, History, BarChart2, Zap, Settings } from 'lucide-react';
 import { useWallet } from '../../context/WalletContext';
+import FakePlayersPanel from './FakePlayersPanel';
 
 interface ColorPredictionGameProps {
   onBack: () => void;
@@ -302,6 +303,11 @@ const ColorPredictionGame = ({ onBack }: ColorPredictionGameProps) => {
             <div className="flex justify-between items-center bg-white/5 px-4 py-2 rounded-xl border border-white/10">
                <span className="text-xs text-gray-400 uppercase font-bold tracking-widest">Total Bet</span>
                <span className="text-xl font-black text-white">₹{totalBetAmount}</span>
+            </div>
+
+            {/* Live Players Feed */}
+            <div className="mt-3">
+              <FakePlayersPanel maxVisible={5} label="Live Bets" />
             </div>
           </div>
 

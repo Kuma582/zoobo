@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:5000/api';
+const BASE_URL = '/api';
 
 const getHeaders = () => {
   const token = localStorage.getItem('zoobo_token');
@@ -51,6 +51,16 @@ export const fetchLeaderboard = async () => {
   return res.json();
 };
 
+
+export const sendHeartbeat = async () => {
+  const res = await fetch(`${BASE_URL}/auth/heartbeat`, {
+    method: 'POST',
+    headers: getHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed heartbeat');
+  return res.json();
+};
+
 export const fetchWallet = async () => {
   const res = await fetch(`${BASE_URL}/wallet`, {
     headers: getHeaders()
@@ -67,5 +77,162 @@ export const postTransaction = async (type, amount, reference) => {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to process transaction');
+  return data;
+};
+
+export const requestDeposit = async (amount: number) => {
+  const res = await fetch(`${BASE_URL}/wallet/deposit/request`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ amount }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to request deposit');
+  return data;
+};
+
+export const submitDepositUtr = async (transactionId: string, utr: string) => {
+  const res = await fetch(`${BASE_URL}/wallet/deposit/submit-utr`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ transactionId, utr }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to submit UTR');
+  return data;
+};
+
+export const getDepositStatus = async (transactionId: string) => {
+  const res = await fetch(`${BASE_URL}/wallet/deposit/status/${transactionId}`, {
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch deposit status');
+  return data;
+};
+
+export const verifyRazorpayDeposit = async (paymentId: string, amount: number) => {
+  const res = await fetch(`${BASE_URL}/wallet/deposit/razorpay-success`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ paymentId, amount }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to verify Razorpay deposit');
+  return data;
+};
+
+export const getAdminToken = () => localStorage.getItem('zoobo_admin_token');
+export const setAdminToken = (token: string) => localStorage.setItem('zoobo_admin_token', token);
+export const clearAdminToken = () => localStorage.removeItem('zoobo_admin_token');
+
+const getAdminHeaders = () => {
+  const token = getAdminToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'x-admin-token': token })
+  };
+};
+
+export const verifyAdminPassword = async (password: string) => {
+  const res = await fetch(`${BASE_URL}/admin/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-token': password
+    },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Invalid Admin Password');
+  return data;
+};
+
+export const fetchAdminStats = async () => {
+  const res = await fetch(`${BASE_URL}/admin/stats`, {
+    headers: getAdminHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch admin stats');
+  return res.json();
+};
+
+export const fetchAdminUsers = async () => {
+  const res = await fetch(`${BASE_URL}/admin/users`, {
+    headers: getAdminHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch admin users');
+  return res.json();
+};
+
+export const fetchAdminTransactions = async () => {
+  const res = await fetch(`${BASE_URL}/admin/transactions`, {
+    headers: getAdminHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch admin transactions');
+  return res.json();
+};
+
+export const approveDeposit = async (userId: string, transactionId: string) => {
+  const res = await fetch(`${BASE_URL}/admin/deposit/approve`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ userId, transactionId }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to approve deposit');
+  return data;
+};
+
+export const rejectDeposit = async (userId: string, transactionId: string) => {
+  const res = await fetch(`${BASE_URL}/admin/deposit/reject`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ userId, transactionId }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to reject deposit');
+  return data;
+};
+
+export const updateUserBalance = async (userId: string, amount: number) => {
+  const res = await fetch(`${BASE_URL}/admin/user/update-balance`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ userId, amount }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update user balance');
+  return data;
+};
+
+export const approveWithdrawal = async (userId: string, transactionId: string) => {
+  const res = await fetch(`${BASE_URL}/admin/withdraw/approve`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ userId, transactionId }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to approve withdrawal');
+  return data;
+};
+
+export const rejectWithdrawal = async (userId: string, transactionId: string) => {
+  const res = await fetch(`${BASE_URL}/admin/withdraw/reject`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ userId, transactionId }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to reject withdrawal');
+  return data;
+};
+
+export const withdrawSystemProfit = async (amount: number, reference: string) => {
+  const res = await fetch(`${BASE_URL}/admin/system/withdraw`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ amount, reference }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to withdraw profit');
   return data;
 };

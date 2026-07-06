@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { fetchMe, loginUser, registerUser } from '../api/client';
+import { fetchMe, loginUser, registerUser, sendHeartbeat } from '../api/client';
 import { useNavigate } from 'react-router-dom';
 
 interface User {
@@ -25,6 +25,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
+  // On app start — restore session from localStorage
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('zoobo_token');
@@ -32,8 +33,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
           const userData = await fetchMe();
           setUser(userData);
+          sendHeartbeat().catch(() => {});
         } catch (err) {
-          console.error('Session expired', err);
+          // Session expired or backend down — clear token silently
+          console.warn('Session restore failed:', err);
           localStorage.removeItem('zoobo_token');
         }
       }
@@ -42,8 +45,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     initAuth();
   }, []);
 
+  // Heartbeat every 30s while user is logged in
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => {
+      sendHeartbeat().catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   const login = async (username: string, password: string) => {
     const data = await loginUser(username, password);
+    if (!data?.user?.id) throw new Error('Invalid response from server. Please try again.');
     localStorage.setItem('zoobo_token', data.user.id);
     setUser(data.user);
     navigate('/');
@@ -51,6 +64,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const register = async (username: string, password: string) => {
     const data = await registerUser(username, password);
+    if (!data?.user?.id) throw new Error('Invalid response from server. Please try again.');
     localStorage.setItem('zoobo_token', data.user.id);
     setUser(data.user);
     navigate('/');

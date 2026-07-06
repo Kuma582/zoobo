@@ -2,7 +2,7 @@
   "games": [
     {
       "id": "g24",
-      "name": "Neon Numbers",
+      "name": "Satta Number (Lucky Ank)",
       "category": "Prediction",
       "difficulty": "Hard",
       "playersOnline": 154000,
@@ -12,7 +12,7 @@
     },
     {
       "id": "g23",
-      "name": "Golden Coin Flip",
+      "name": "Sikka Toss (Head/Tail)",
       "category": "Prediction",
       "difficulty": "Easy",
       "playersOnline": 89000,
@@ -22,7 +22,7 @@
     },
     {
       "id": "g22",
-      "name": "Texas Hold'em VIP",
+      "name": "Taas Hold'em VIP",
       "category": "Card Games",
       "difficulty": "Hard",
       "playersOnline": 120000,
@@ -32,7 +32,7 @@
     },
     {
       "id": "g21",
-      "name": "Neon Win Go",
+      "name": "Win Go Rango ki Kismat",
       "category": "Prediction",
       "difficulty": "Medium",
       "playersOnline": 105000,
@@ -42,7 +42,7 @@
     },
     {
       "id": "g20",
-      "name": "Neon Dice",
+      "name": "Shakuni Pasa (Dice Roll)",
       "category": "Arcade",
       "difficulty": "Medium",
       "playersOnline": 54000,
@@ -52,7 +52,7 @@
     },
     {
       "id": "g19",
-      "name": "Treasure Bombs",
+      "name": "Khazana Blast (Mines)",
       "category": "Arcade",
       "difficulty": "Medium",
       "playersOnline": 75000,
@@ -72,7 +72,7 @@
     },
     {
       "id": "g17",
-      "name": "Neon Slots",
+      "name": "Bhagya Chakra Slots",
       "category": "Slots",
       "difficulty": "Easy",
       "playersOnline": 62000,
@@ -82,7 +82,7 @@
     },
     {
       "id": "g16",
-      "name": "Neon Colors",
+      "name": "Rang Prediction (Colors)",
       "category": "Arcade",
       "difficulty": "Easy",
       "playersOnline": 45000,
@@ -92,7 +92,7 @@
     },
     {
       "id": "g15",
-      "name": "Dragon Tiger",
+      "name": "Dragon Tiger Fight",
       "category": "Card Games",
       "difficulty": "Easy",
       "playersOnline": 24500,
@@ -102,7 +102,7 @@
     },
     {
       "id": "g14",
-      "name": "Neon Mines",
+      "name": "Surang Khazana (Mines)",
       "category": "Arcade",
       "difficulty": "Medium",
       "playersOnline": 18500,
@@ -112,7 +112,7 @@
     },
     {
       "id": "g13",
-      "name": "Lucky Spin",
+      "name": "Bhagya ki Chakri (Spin)",
       "category": "Casual",
       "difficulty": "Easy",
       "playersOnline": 12500,
@@ -122,7 +122,7 @@
     },
     {
       "id": "g11",
-      "name": "Aviator",
+      "name": "Udan Jahaj (Aviator)",
       "category": "Arcade",
       "difficulty": "Easy",
       "playersOnline": 8500,
@@ -132,7 +132,7 @@
     },
     {
       "id": "g12",
-      "name": "Chicken Roll",
+      "name": "Murgi Sadak Paar (Chicken Road)",
       "category": "Casual",
       "difficulty": "Easy",
       "playersOnline": 4200,
@@ -142,7 +142,7 @@
     },
     {
       "id": "g1",
-      "name": "Cyber Ludo",
+      "name": "Desi Ludo King",
       "category": "Board Games",
       "difficulty": "Easy",
       "playersOnline": 1240,
@@ -152,7 +152,7 @@
     },
     {
       "id": "g2",
-      "name": "Neon Chess",
+      "name": "Shatranj Master",
       "category": "Strategy",
       "difficulty": "Hard",
       "playersOnline": 850,
@@ -162,7 +162,7 @@
     },
     {
       "id": "g3",
-      "name": "Space Shooter",
+      "name": "Antariksh Jung",
       "category": "Arcade",
       "difficulty": "Medium",
       "playersOnline": 3200,
@@ -172,7 +172,7 @@
     },
     {
       "id": "g4",
-      "name": "Carrom Strike",
+      "name": "Desi Carrom Board",
       "category": "Board Games",
       "difficulty": "Easy",
       "playersOnline": 2100,
@@ -182,7 +182,7 @@
     },
     {
       "id": "g5",
-      "name": "Snake 2077",
+      "name": "Saanp Seedhi aur Saanp",
       "category": "Arcade",
       "difficulty": "Medium",
       "playersOnline": 5600,
@@ -192,7 +192,7 @@
     },
     {
       "id": "g6",
-      "name": "Sudoku Grid",
+      "name": "Sudoku Puzzle",
       "category": "Puzzle",
       "difficulty": "Hard",
       "playersOnline": 450,
@@ -202,7 +202,7 @@
     },
     {
       "id": "g7",
-      "name": "Quantum 2048",
+      "name": "2048 Game",
       "category": "Puzzle",
       "difficulty": "Medium",
       "playersOnline": 1100,
@@ -212,7 +212,7 @@
     },
     {
       "id": "g8",
-      "name": "Brain Quiz",
+      "name": "KBC Dimag Quiz",
       "category": "Quiz",
       "difficulty": "Easy",
       "playersOnline": 1800,
@@ -222,7 +222,7 @@
     },
     {
       "id": "g9",
-      "name": "Memory Match",
+      "name": "Dimag Ka Khel (Memory)",
       "category": "Brain Games",
       "difficulty": "Easy",
       "playersOnline": 700,
@@ -232,7 +232,7 @@
     },
     {
       "id": "g10",
-      "name": "Cyber Racing",
+      "name": "Dhoom Gadi Racing",
       "category": "Racing",
       "difficulty": "Hard",
       "playersOnline": 4500,

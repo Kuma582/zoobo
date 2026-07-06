@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Wallet, Settings, CircleDot, History, ArrowUpCircle, AlertCircle, Coins, Sparkles, TrendingUp } from 'lucide-react';
+import { ChevronLeft, Wallet, Settings, History, Coins, Sparkles } from 'lucide-react';
 import { useWallet } from '../../context/WalletContext';
+import FakePlayersPanel from './FakePlayersPanel';
 
 interface CoinFlipGameProps {
   onBack: () => void;
@@ -26,7 +27,7 @@ const CoinFlipGame = ({ onBack }: CoinFlipGameProps) => {
   const [winAmount, setWinAmount] = useState(0);
   
   const [resultFace, setResultFace] = useState<'HEADS' | 'TAILS' | null>(null);
-  const [history, setHistory] = useState<'HEADS' | 'TAILS'[]>(['HEADS', 'TAILS', 'HEADS', 'HEADS', 'TAILS', 'HEADS']);
+  const [history, setHistory] = useState<('HEADS' | 'TAILS')[]>(['HEADS', 'TAILS', 'HEADS', 'HEADS', 'TAILS', 'HEADS']);
   const [flipCount, setFlipCount] = useState(0);
 
   // Game Loop
@@ -49,7 +50,7 @@ const CoinFlipGame = ({ onBack }: CoinFlipGameProps) => {
       // Simulate flipping
       setTimeout(() => {
         const isHeads = Math.random() > 0.5;
-        const face = isHeads ? 'HEADS' : 'TAILS';
+        const face: 'HEADS' | 'TAILS' = isHeads ? 'HEADS' : 'TAILS';
         setResultFace(face);
         
         // Evaluate Win
@@ -355,6 +356,11 @@ const CoinFlipGame = ({ onBack }: CoinFlipGameProps) => {
             ))}
           </div>
           
+          {/* Live Player Feed */}
+          <div className="my-3">
+            <FakePlayersPanel maxVisible={5} label="Recent Rounds" />
+          </div>
+
           {/* Place Bet Button */}
           <button
             onClick={handleConfirmBet}

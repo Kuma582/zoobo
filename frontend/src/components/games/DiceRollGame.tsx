@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Wallet, Settings, History, Dice1, Sparkles, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useWallet } from '../../context/WalletContext';
+import FakePlayersPanel from './FakePlayersPanel';
 
 interface DiceRollGameProps {
   onBack: () => void;
@@ -422,6 +423,11 @@ const DiceRollGame = ({ onBack }: DiceRollGameProps) => {
                 </div>
               </button>
             ))}
+          </div>
+
+          {/* Live Player Feed */}
+          <div className="my-3">
+            <FakePlayersPanel maxVisible={5} label="Live Players" />
           </div>
 
           {/* Place Bet Button */}

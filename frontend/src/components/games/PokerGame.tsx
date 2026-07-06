@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Wallet, Settings, Users, ArrowUpCircle, XCircle, CheckCircle2, ShieldAlert, BadgeCent } from 'lucide-react';
+import { ChevronLeft, ArrowUpCircle, XCircle, CheckCircle2, BadgeCent, Trophy } from 'lucide-react';
 import { useWallet } from '../../context/WalletContext';
+import FakePlayersPanel from './FakePlayersPanel';
 
 interface PokerGameProps {
   onBack: () => void;
@@ -9,9 +10,7 @@ interface PokerGameProps {
 
 type Phase = 'PRE_FLOP' | 'FLOP' | 'TURN' | 'RIVER' | 'SHOWDOWN';
 
-// Mock Card Data
-const SUITS = ['♠', '♥', '♦', '♣'];
-const VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+
 
 const PlayingCard = ({ value, suit, hidden = false, delay = 0 }: { value?: string, suit?: string, hidden?: boolean, delay?: number }) => {
   const isRed = suit === '♥' || suit === '♦';
@@ -255,6 +254,11 @@ const PokerGame = ({ onBack }: PokerGameProps) => {
             </button>
           </div>
           
+          {/* Live Players Feed */}
+          <div className="mt-3 mx-4">
+            <FakePlayersPanel maxVisible={5} label="Table Activity" />
+          </div>
+
         </div>
 
         {/* Win Overlay */}

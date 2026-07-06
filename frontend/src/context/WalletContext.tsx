@@ -14,10 +14,11 @@ interface Transaction {
 interface WalletContextType {
   balance: number;
   transactions: Transaction[];
-  addMoney: (amount: number) => void;
+  addMoney: (amount: number, reference?: string) => void;
   deductMoney: (amount: number, gameName: string) => boolean;
   withdrawMoney: (amount: number, upiId: string) => boolean;
   transferMoney: (amount: number, username: string) => boolean;
+  refreshWallet: () => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -45,11 +46,12 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     loadWallet();
   }, [user]);
 
-  const addMoney = async (amount: number) => {
+  const addMoney = async (amount: number, reference: string = 'Self Deposit') => {
     // Optimistic update
     setBalance(prev => prev + amount);
     try {
-      const res = await postTransaction('deposit', amount, 'Self Deposit');
+      const res = await postTransaction('deposit', amount, reference);
+      setBalance(res.balance);
       setTransactions(res.transaction ? [res.transaction, ...transactions] : transactions);
     } catch (err) {
       console.error(err);
@@ -60,6 +62,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (balance >= amount) {
       setBalance(prev => prev - amount);
       postTransaction('game_fee', amount, `Entry: ${gameName}`).then(res => {
+        setBalance(res.balance);
         setTransactions(prev => [res.transaction, ...prev]);
       }).catch(console.error);
       return true;
@@ -71,6 +74,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (balance >= amount) {
       setBalance(prev => prev - amount);
       postTransaction('withdraw', amount, `To: ${upiId}`).then(res => {
+        setBalance(res.balance);
         setTransactions(prev => [res.transaction, ...prev]);
       }).catch(console.error);
       return true;
@@ -82,6 +86,7 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (balance >= amount) {
       setBalance(prev => prev - amount);
       postTransaction('transfer', amount, `To: ${username}`).then(res => {
+        setBalance(res.balance);
         setTransactions(prev => [res.transaction, ...prev]);
       }).catch(console.error);
       return true;
@@ -89,8 +94,19 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     return false;
   };
 
+  const refreshWallet = async () => {
+    if (!user) return;
+    try {
+      const data = await fetchWallet();
+      setBalance(data.balance);
+      setTransactions(data.transactions);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
-    <WalletContext.Provider value={{ balance, transactions, addMoney, deductMoney, withdrawMoney, transferMoney }}>
+    <WalletContext.Provider value={{ balance, transactions, addMoney, deductMoney, withdrawMoney, transferMoney, refreshWallet }}>
       {children}
     </WalletContext.Provider>
   );

@@ -1,29 +1,48 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Plus, History, CheckCircle2, Clock, Send, ChevronRight, X, QrCode, Loader2 } from 'lucide-react';
+import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Plus, History, CheckCircle2, Clock, Send, ChevronRight, X, Loader2, Copy, Download, AlertCircle, CreditCard, Landmark, RefreshCcw } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
+import { requestDeposit, submitDepositUtr, getDepositStatus, verifyRazorpayDeposit } from '../api/client';
 
 const Wallet = () => {
-  const { balance, transactions, addMoney, withdrawMoney, transferMoney } = useWallet();
+  const { balance, transactions, withdrawMoney, transferMoney, refreshWallet } = useWallet();
   const [activeModal, setActiveModal] = useState<'add' | 'withdraw' | 'transfer' | null>(null);
   const [amount, setAmount] = useState('');
-  const [targetId, setTargetId] = useState(''); // UPI ID or Username
-  const [paymentStep, setPaymentStep] = useState<'input' | 'qr' | 'processing' | 'success'>('input');
+  const [targetId, setTargetId] = useState(''); // UPI ID or Username or Account Number
+  const [accountName, setAccountName] = useState(''); // Account Holder Name
+  const [ifscCode, setIfscCode] = useState(''); // IFSC Code
+  const [paymentStep, setPaymentStep] = useState<'input' | 'method_select' | 'qr' | 'utr_entry' | 'verifying' | 'success' | 'failed' | 'processing' | 'submitted'>('input');
+  
+  // Secure Deposit States
+  const [currentTransactionId, setCurrentTransactionId] = useState<string | null>(null);
+  const [utr, setUtr] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [timer, setTimer] = useState(600); // 10 minutes (600s)
 
   const handleOpenModal = (type: 'add' | 'withdraw' | 'transfer') => {
     setActiveModal(type);
     setPaymentStep('input');
     setAmount('');
     setTargetId('');
+    setAccountName('');
+    setIfscCode('');
+    setUtr('');
+    setErrorMsg('');
+    setCurrentTransactionId(null);
+    setTimer(600);
   };
 
-  const handleInitiateAction = (e: React.FormEvent) => {
+  const handleInitiateAction = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = parseInt(amount);
     
     if (parsedAmount > 0) {
       if (activeModal === 'add') {
-        setPaymentStep('qr');
+        if (parsedAmount < 50) {
+          alert('Minimum deposit amount is ₹50');
+          return;
+        }
+        setPaymentStep('method_select');
       } else if (activeModal === 'withdraw' || activeModal === 'transfer') {
         if (activeModal === 'withdraw') {
           if (parsedAmount < 100) {
@@ -45,30 +64,157 @@ const Wallet = () => {
     }
   };
 
+  const handleSelectRazorpay = () => {
+    const parsedAmount = parseInt(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) return;
+
+    setPaymentStep('processing');
+
+    const options = {
+      key: 'rzp_test_5mF6yO1Y2xP3zQ', // Test key id
+      amount: parsedAmount * 100, // paise
+      currency: 'INR',
+      name: 'Zoobo Games',
+      description: 'Deposit to Wallet',
+      image: 'https://cdn-icons-png.flaticon.com/512/10014/10014798.png',
+      handler: async function (response: any) {
+        try {
+          setPaymentStep('verifying');
+          const paymentId = response.razorpay_payment_id;
+          // Verify on backend
+          await verifyRazorpayDeposit(paymentId, parsedAmount);
+          await refreshWallet(); // Reload balance securely
+          setPaymentStep('success');
+        } catch (err: any) {
+          setErrorMsg(err.message || 'Razorpay payment verification failed.');
+          setPaymentStep('failed');
+        }
+      },
+      prefill: {
+        name: 'Zoobo Player',
+        email: 'player@zoobo.com',
+        contact: '9999999999'
+      },
+      theme: {
+        color: '#6441A5' // purple theme color matching zoobo
+      },
+      modal: {
+        ondismiss: function () {
+          setPaymentStep('method_select');
+        }
+      }
+    };
+
+    try {
+      const rzp1 = new (window as any).Razorpay(options);
+      rzp1.open();
+    } catch (err) {
+      console.error('Razorpay SDK failed to load', err);
+      alert('Razorpay payment gateway failed to load. Please try again or use manual UPI.');
+      setPaymentStep('method_select');
+    }
+  };
+
+  const handleSelectManualUPI = async () => {
+    const parsedAmount = parseInt(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) return;
+
+    try {
+      setPaymentStep('processing'); // Show spinner during request creation
+      const data = await requestDeposit(parsedAmount);
+      setCurrentTransactionId(data.transaction.id);
+      setTimer(600); // Reset 10 minutes countdown
+      setPaymentStep('qr');
+    } catch (err: any) {
+      alert(err.message || 'Failed to create deposit request');
+      setPaymentStep('method_select');
+    }
+  };
+
   const scrollToHistory = () => {
     document.getElementById('recent-activity')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Simulate payment flows
+  // UPI Copy & QR Download Helper functions
+  const UPI_ID = 'zoobo@upi'; // TODO: Replace with real UPI ID
+
+  const handleCopyUPI = () => {
+    navigator.clipboard.writeText(UPI_ID).then(() => {
+      alert('✅ UPI ID copied! Paste it in your payment app.');
+    }).catch(() => {
+      alert('UPI ID: ' + UPI_ID + ' — Please copy manually.');
+    });
+  };
+
+  const handleDownloadQR = () => {
+    const link = document.createElement('a');
+    link.href = '/qr.jpg';
+    link.download = 'zoobo_deposit_qr.jpg';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Timer Effect for QR Payment
   useEffect(() => {
-    let timer1: NodeJS.Timeout;
+    if (paymentStep !== 'qr' || activeModal !== 'add') return;
+    
+    const interval = setInterval(() => {
+      setTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setErrorMsg('Payment request timed out.');
+          setPaymentStep('failed');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [paymentStep, activeModal]);
+
+  const formatTimer = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const secs = sec % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // UTR Submit Handler
+  const handleSubmitUTR = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTransactionId) return;
+    if (!/^\d{10,16}$/.test(utr)) {
+      setErrorMsg('Please enter a valid UTR number (10-16 digits)');
+      return;
+    }
+
+    try {
+      setErrorMsg('');
+      setPaymentStep('processing');
+      await submitDepositUtr(currentTransactionId, utr);
+      
+      // Update step to submitted as the transaction is manually verified by the admin
+      setPaymentStep('submitted');
+      refreshWallet();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Verification submission failed');
+      setPaymentStep('failed');
+    }
+  };
+
+  // Simulate withdrawal / transfer flows (unchanged)
+  useEffect(() => {
     let timer2: NodeJS.Timeout;
     let timer3: NodeJS.Timeout;
 
-    if (paymentStep === 'qr' && activeModal === 'add') {
-      timer1 = setTimeout(() => {
-        setPaymentStep('processing');
-      }, 4000);
-    }
-
-    if (paymentStep === 'processing') {
+    if (paymentStep === 'processing' && activeModal !== 'add') {
       timer2 = setTimeout(() => {
         const numAmount = parseInt(amount);
         
-        if (activeModal === 'add') {
-          addMoney(numAmount);
-        } else if (activeModal === 'withdraw') {
-          withdrawMoney(numAmount, targetId);
+        if (activeModal === 'withdraw') {
+          const bankDetails = `Acc: ${targetId}, IFSC: ${ifscCode.toUpperCase()}, Name: ${accountName}`;
+          withdrawMoney(numAmount, bankDetails);
         } else if (activeModal === 'transfer') {
           transferMoney(numAmount, targetId);
         }
@@ -83,11 +229,10 @@ const Wallet = () => {
     }
     
     return () => {
-      clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
     };
-  }, [paymentStep, activeModal, amount, targetId, addMoney, withdrawMoney, transferMoney]);
+  }, [paymentStep, activeModal, amount, targetId, withdrawMoney, transferMoney]);
 
   return (
     <div className="min-h-screen bg-[#050505] pb-24 font-sans">
@@ -109,9 +254,18 @@ const Wallet = () => {
           
           <div className="relative z-10">
             <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center gap-2 bg-black/20 px-3 py-1 rounded-full border border-white/10 backdrop-blur-md">
-                <WalletIcon className="w-4 h-4 text-white" />
-                <span className="text-xs font-medium text-white/90 uppercase tracking-wider">Total Balance</span>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 bg-black/20 px-3 py-1 rounded-full border border-white/10 backdrop-blur-md">
+                  <WalletIcon className="w-4 h-4 text-white" />
+                  <span className="text-xs font-medium text-white/90 uppercase tracking-wider">Total Balance</span>
+                </div>
+                <button 
+                  onClick={refreshWallet}
+                  className="p-1.5 bg-black/20 hover:bg-black/40 border border-white/10 rounded-full transition-all group"
+                  title="Refresh Balance"
+                >
+                  <RefreshCcw className="w-3.5 h-3.5 text-white/70 group-hover:text-white" />
+                </button>
               </div>
               <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Mastercard-logo.svg/1280px-Mastercard-logo.svg.png" alt="Card" className="h-6 opacity-80" />
             </div>
@@ -192,6 +346,7 @@ const Wallet = () => {
                       {tx.type === 'game_fee' ? 'Game Entry' : tx.type}
                     </p>
                     <p className="text-gray-500 text-xs mt-0.5">{tx.reference}</p>
+                    <p className="text-[9px] text-gray-600">ID: {tx.id}</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -202,9 +357,11 @@ const Wallet = () => {
                   </p>
                   <div className="flex items-center justify-end gap-1 mt-1">
                     {tx.status === 'Success' ? (
-                      <CheckCircle2 className="w-3 h-3 text-cyber-blue" />
+                      <CheckCircle2 className="w-3 h-3 text-green-400" />
+                    ) : tx.status === 'Failed' ? (
+                      <AlertCircle className="w-3 h-3 text-red-500" />
                     ) : (
-                      <Clock className="w-3 h-3 text-orange-500" />
+                      <Clock className="w-3 h-3 text-orange-500 animate-pulse" />
                     )}
                     <p className="text-[10px] text-gray-500">{new Date(tx.date).toLocaleDateString()}</p>
                   </div>
@@ -224,7 +381,11 @@ const Wallet = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
-              onClick={() => setActiveModal(null)}
+              onClick={() => {
+                if (paymentStep !== 'verifying' && paymentStep !== 'processing') {
+                  setActiveModal(null);
+                }
+              }}
             />
             <motion.div
               initial={{ y: '100%' }}
@@ -246,13 +407,14 @@ const Wallet = () => {
                   </div>
 
                   <form onSubmit={handleInitiateAction}>
-                    {/* Input fields based on action type */}
                     {activeModal === 'withdraw' && (
                       <div className="space-y-4 mb-4">
                         <div>
                           <label className="text-sm text-gray-400 mb-1 block">Account Holder Name</label>
                           <input 
                             type="text" 
+                            value={accountName}
+                            onChange={(e) => setAccountName(e.target.value)}
                             placeholder="e.g. John Doe"
                             className="w-full bg-cyber-black border-2 border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-cyber-purple transition-colors"
                             required
@@ -273,6 +435,8 @@ const Wallet = () => {
                           <label className="text-sm text-gray-400 mb-1 block">IFSC Code</label>
                           <input 
                             type="text" 
+                            value={ifscCode}
+                            onChange={(e) => setIfscCode(e.target.value)}
                             placeholder="e.g. HDFC0001234"
                             className="w-full bg-cyber-black border-2 border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-cyber-purple transition-colors uppercase"
                             required
@@ -304,14 +468,14 @@ const Wallet = () => {
                         placeholder="0"
                         autoFocus
                         className="w-full bg-cyber-black border-2 border-white/10 rounded-2xl py-4 pl-10 pr-4 text-3xl font-black text-white focus:outline-none focus:border-cyber-purple transition-colors"
-                        min={activeModal === 'withdraw' ? 100 : 1}
+                        min={activeModal === 'withdraw' ? 100 : activeModal === 'add' ? 50 : 1}
                         max={activeModal === 'withdraw' ? Math.min(50000, balance) : activeModal === 'transfer' ? balance : undefined}
                         required
                       />
                     </div>
 
                     <div className="grid grid-cols-4 gap-2 mb-8">
-                      {[100, 500, 1000, 5000].map(amt => (
+                      {[50, 100, 500, 1000].map(amt => (
                         <button
                           key={amt}
                           type="button"
@@ -333,27 +497,176 @@ const Wallet = () => {
                 </div>
               )}
 
+              {paymentStep === 'method_select' && activeModal === 'add' && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="w-full max-w-md mx-auto flex flex-col items-center py-4 text-center"
+                >
+                  <h3 className="text-xl font-bold text-white mb-2">Select Payment Method</h3>
+                  <p className="text-gray-400 text-xs mb-6">Choose how you want to add ₹{amount} to your wallet</p>
+
+                  <div className="space-y-3 w-full mb-6">
+                    {/* Razorpay Option */}
+                    <button 
+                      onClick={handleSelectRazorpay}
+                      className="w-full flex items-center justify-between bg-black/40 border border-white/5 hover:border-cyber-purple/50 p-4 rounded-2xl transition-all group"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-10 h-10 rounded-xl bg-cyber-purple/10 flex items-center justify-center border border-cyber-purple/20 text-cyber-purple group-hover:scale-105 transition-transform">
+                          <CreditCard className="w-5 h-5" />
+                        </div>
+                        <div className="text-left">
+                          <div className="text-sm font-bold text-white">Online Payment (Razorpay)</div>
+                          <div className="text-[10px] text-gray-500">Pay via UPI, Cards, Netbanking instantly</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-white transition-colors" />
+                    </button>
+
+                    {/* Manual UPI Option */}
+                    <button 
+                      onClick={handleSelectManualUPI}
+                      className="w-full flex items-center justify-between bg-black/40 border border-white/5 hover:border-cyber-blue/50 p-4 rounded-2xl transition-all group"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-10 h-10 rounded-xl bg-cyber-blue/10 flex items-center justify-center border border-cyber-blue/20 text-cyber-blue group-hover:scale-105 transition-transform">
+                          <Landmark className="w-5 h-5" />
+                        </div>
+                        <div className="text-left">
+                          <div className="text-sm font-bold text-white">Manual UPI (QR Code & UTR)</div>
+                          <div className="text-[10px] text-gray-500">Scan QR code and enter 12-digit UTR manually</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-white transition-colors" />
+                    </button>
+                  </div>
+
+                  <button 
+                    onClick={() => setPaymentStep('input')}
+                    className="w-full py-3.5 bg-white/5 border border-white/10 text-gray-300 text-xs font-bold uppercase rounded-xl hover:text-white transition-colors"
+                  >
+                    Go Back
+                  </button>
+                </motion.div>
+              )}
+
               {paymentStep === 'qr' && activeModal === 'add' && (
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="w-full max-w-md mx-auto flex flex-col items-center py-6"
+                  className="w-full max-w-md mx-auto flex flex-col items-center py-2"
                 >
-                  <h3 className="text-xl font-bold text-white mb-2">Scan to Pay</h3>
-                  <p className="text-gray-400 text-sm mb-6">Use any UPI app to complete payment</p>
-                  
-                  <div className="bg-white p-4 rounded-2xl mb-6 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-                    <div className="w-48 h-48 overflow-hidden rounded-xl">
+                  <div className="flex justify-between items-center w-full mb-4">
+                    <h3 className="text-lg font-bold text-white">Scan & Pay</h3>
+                    <div className="bg-red-500/20 px-3 py-1 rounded-full border border-red-500/30 text-xs font-mono font-black text-red-400">
+                      Timer: {formatTimer(timer)}
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-2xl mb-4 shadow-[0_0_30px_rgba(255,255,255,0.15)] flex justify-center">
+                    <div className="w-40 h-40 overflow-hidden rounded-xl">
                       <img src="/qr.jpg" alt="UPI QR Code" className="w-full h-full object-cover" />
                     </div>
                   </div>
                   
-                  <div className="text-3xl font-black text-white mb-6 tracking-tight">₹{amount}</div>
+                  <div className="text-3xl font-black text-white mb-2 tracking-tight">₹{amount}</div>
                   
-                  <div className="flex items-center justify-center gap-2 text-cyber-blue animate-pulse">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm font-medium">Waiting for payment...</span>
+                  {/* UPI Details Box */}
+                  <div className="w-full bg-black/40 border border-white/5 rounded-xl p-3 mb-5 flex items-center justify-between text-xs">
+                    <div>
+                      <div className="text-gray-500 uppercase tracking-widest text-[9px] font-black">UPI ID</div>
+                      <div className="text-white font-bold font-mono">{UPI_ID}</div>
+                    </div>
+                    <button onClick={handleCopyUPI} className="p-2 bg-white/5 rounded-lg border border-white/10 text-cyber-purple hover:bg-white/10 transition-all flex items-center gap-1.5 font-bold uppercase text-[9px]">
+                      <Copy className="w-3.5 h-3.5" /> Copy ID
+                    </button>
                   </div>
+
+                  {/* Instructions */}
+                  <div className="w-full text-left text-gray-400 text-[10px] space-y-1 bg-white/5 p-3 rounded-xl border border-white/5 mb-6">
+                    <div className="font-bold text-white uppercase text-[9px] mb-1">Instructions:</div>
+                    <p>1. Open <strong className="text-white">any UPI app</strong> (PhonePe, GPay, Paytm, etc.) and scan the QR code above.</p>
+                    <p>2. Pay exactly <strong className="text-white">₹{amount}</strong> — enter the amount manually if needed.</p>
+                    <p>3. After payment, find the <strong className="text-white">UTR / UPI Ref No.</strong> in your payment receipt.</p>
+                    <p>4. Click <strong className="text-cyber-purple">"I Have Paid"</strong> and enter that reference number below.</p>
+                  </div>
+
+                  {/* QR Action buttons */}
+                  <div className="grid grid-cols-2 gap-3 w-full">
+                    <button onClick={handleDownloadQR} className="py-3 px-4 rounded-xl font-bold text-xs uppercase bg-[#1a1a20] border border-white/10 text-gray-300 hover:text-white transition-all flex items-center justify-center gap-2">
+                      <Download className="w-4 h-4" /> Download QR
+                    </button>
+                    <button onClick={() => setPaymentStep('utr_entry')} className="py-3 px-4 rounded-xl font-bold text-xs uppercase bg-[#2cba00] border-b-4 border-green-800 text-white shadow-lg hover:brightness-110 transition-all">
+                      I Have Paid
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {paymentStep === 'utr_entry' && activeModal === 'add' && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="w-full max-w-md mx-auto flex flex-col items-center py-4"
+                >
+                  <h3 className="text-xl font-bold text-white mb-2">Enter Payment UTR</h3>
+                  <p className="text-gray-400 text-xs text-center mb-6">Please enter the 12-digit UPI Transaction Reference (UTR) number to verify your payment.</p>
+                  
+                  <form onSubmit={handleSubmitUTR} className="w-full">
+                    <div className="mb-4">
+                      <input 
+                        type="text" 
+                        maxLength={16}
+                        value={utr}
+                        onChange={(e) => setUtr(e.target.value.replace(/\D/g, ''))}
+                        placeholder="Enter UTR / UPI Ref No. (10-16 digits)"
+                        className="w-full bg-black/60 border-2 border-white/10 rounded-xl py-3 px-4 text-white text-center font-mono font-bold tracking-widest focus:outline-none focus:border-cyber-purple transition-all"
+                        required
+                      />
+                      {errorMsg && (
+                        <p className="text-red-500 text-xs font-bold text-center mt-2 flex items-center justify-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5" /> {errorMsg}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3 w-full">
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setErrorMsg('');
+                          setPaymentStep('qr');
+                        }}
+                        className="flex-1 py-3.5 bg-[#1a1a20] border border-white/10 text-gray-300 text-xs font-bold uppercase rounded-xl"
+                      >
+                        Go Back
+                      </button>
+                      <button 
+                        type="submit"
+                        disabled={utr.length < 10 || utr.length > 16}
+                        className="flex-1 py-3.5 bg-[#2cba00] border-b-4 border-green-800 disabled:opacity-40 text-white text-xs font-bold uppercase rounded-xl shadow-lg"
+                      >
+                        Submit UTR
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              )}
+
+              {paymentStep === 'verifying' && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="w-full max-w-md mx-auto flex flex-col items-center py-10"
+                >
+                  <div className="w-20 h-20 bg-cyber-purple/10 rounded-full flex items-center justify-center mb-6">
+                    <Loader2 className="w-10 h-10 text-cyber-purple animate-spin" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Verifying Payment...</h3>
+                  <p className="text-gray-400 text-xs text-center max-w-xs">
+                    Your payment has been submitted for verification. Please wait while we verify your transaction.
+                  </p>
                 </motion.div>
               )}
 
@@ -367,7 +680,7 @@ const Wallet = () => {
                     <Loader2 className="w-10 h-10 text-cyber-blue animate-spin" />
                   </div>
                   <h3 className="text-xl font-bold text-white mb-2">
-                    {activeModal === 'add' ? 'Processing Payment' : activeModal === 'withdraw' ? 'Processing Withdrawal' : 'Processing Transfer'}
+                    {activeModal === 'add' ? 'Creating Deposit Request' : activeModal === 'withdraw' ? 'Processing Withdrawal' : 'Processing Transfer'}
                   </h3>
                   <p className="text-gray-400 text-sm">Please do not close this window...</p>
                 </motion.div>
@@ -377,21 +690,70 @@ const Wallet = () => {
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="w-full max-w-md mx-auto flex flex-col items-center py-12"
+                  className="w-full max-w-md mx-auto flex flex-col items-center py-10"
                 >
-                  <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(34,197,94,0.3)]">
-                    <CheckCircle2 className="w-12 h-12 text-green-500" />
+                  <div className="w-20 h-20 bg-[#2cba00]/15 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(44,186,0,0.3)]">
+                    <CheckCircle2 className="w-10 h-10 text-[#2cba00]" />
                   </div>
-                  <h3 className="text-2xl font-black text-white mb-2">
-                    {activeModal === 'add' ? 'Payment Successful!' : activeModal === 'withdraw' ? 'Withdrawal Successful!' : 'Transfer Sent!'}
+                  <h3 className="text-2xl font-black text-white text-center mb-2">
+                    Payment Verified Successfully!
                   </h3>
-                  <p className="text-gray-400 text-sm mb-2">
-                    {activeModal === 'add' 
-                      ? `₹${amount} has been added to your wallet.` 
-                      : activeModal === 'withdraw' 
-                        ? `₹${amount} sent to ${targetId}.` 
-                        : `₹${amount} transferred to ${targetId}.`}
+                  <p className="text-gray-400 text-xs text-center max-w-xs mb-6">
+                    ₹{amount} has been added to your wallet.
                   </p>
+                  <button onClick={() => setActiveModal(null)} className="w-full py-3.5 bg-[#2cba00] border-b-4 border-green-800 text-white text-xs font-black uppercase rounded-xl shadow-lg">
+                    Done
+                  </button>
+                </motion.div>
+              )}
+
+              {paymentStep === 'submitted' && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="w-full max-w-md mx-auto flex flex-col items-center py-10"
+                >
+                  <div className="w-20 h-20 bg-orange-500/15 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(249,115,22,0.3)] text-orange-500">
+                    <Clock className="w-10 h-10 animate-pulse" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2 text-center">
+                    Deposit Request Submitted!
+                  </h3>
+                  <p className="text-gray-400 text-xs text-center max-w-xs mb-6 leading-relaxed">
+                    Your payment of ₹{amount} has been submitted with UTR: <strong className="text-white font-mono">{utr}</strong>. Please wait while the administrator verifies and approves your transaction.
+                  </p>
+                  <button onClick={() => setActiveModal(null)} className="w-full py-3.5 bg-orange-500 border-b-4 border-orange-700 text-white text-xs font-black uppercase rounded-xl shadow-lg">
+                    Close
+                  </button>
+                </motion.div>
+              )}
+
+              {paymentStep === 'failed' && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="w-full max-w-md mx-auto flex flex-col items-center py-10"
+                >
+                  <div className="w-20 h-20 bg-red-500/15 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(239,68,68,0.3)]">
+                    <AlertCircle className="w-10 h-10 text-red-500" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">
+                    Verification Failed / Pending
+                  </h3>
+                  <p className="text-gray-400 text-xs text-center max-w-xs mb-6 leading-relaxed">
+                    {errorMsg || 'Payment verification failed. Please try again or contact support.'}
+                  </p>
+                  
+                  <div className="flex gap-3 w-full">
+                    {utr && (
+                      <button onClick={() => setPaymentStep('utr_entry')} className="flex-1 py-3.5 bg-[#1a1a20] border border-white/10 text-gray-300 text-xs font-bold uppercase rounded-xl">
+                        Try Again
+                      </button>
+                    )}
+                    <button onClick={() => setActiveModal(null)} className="flex-1 py-3.5 bg-red-600 border-b-4 border-red-800 text-white text-xs font-bold uppercase rounded-xl">
+                      Close
+                    </button>
+                  </div>
                 </motion.div>
               )}
 

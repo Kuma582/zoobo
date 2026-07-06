@@ -28,6 +28,7 @@ import TermsConditions from './pages/TermsConditions.tsx';
 import NotFound from './pages/NotFound.tsx';
 import Login from './pages/Login.tsx';
 import Register from './pages/Register.tsx';
+import AdminPanel from './pages/AdminPanel.tsx';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/admin" element={<AdminPanel />} />
             
             <Route path="/" element={<MainLayout />}>
               <Route index element={<Home />} />
