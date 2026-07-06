@@ -492,15 +492,15 @@ const AdminPanel = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Total Real Bank Cash</div>
-                  <div className="text-2xl font-black text-white">₹{stats.platformBankCash.toLocaleString()}</div>
+                  <div className="text-2xl font-black text-white">₹{stats?.platformBankCash?.toLocaleString() || 0}</div>
                   <div className="text-[9px] text-gray-500 mt-1">Total Deposits - Withdrawals</div>
                 </div>
                 <div>
                   <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Available Profit</div>
-                  <div className={`text-2xl font-black ${stats.availableProfit >= 0 ? 'text-green-400' : 'text-rose-500'}`}>
-                    ₹{stats.availableProfit.toLocaleString()}
+                  <div className={`text-2xl font-black ${(stats?.availableProfit || 0) >= 0 ? 'text-green-400' : 'text-rose-500'}`}>
+                    ₹{stats?.availableProfit?.toLocaleString() || 0}
                   </div>
-                  <div className="text-[9px] text-gray-500 mt-1">Total Withdrawn: ₹{stats.withdrawnProfit}</div>
+                  <div className="text-[9px] text-gray-500 mt-1">Total Withdrawn: ₹{stats?.withdrawnProfit || 0}</div>
                 </div>
                 <div className="flex items-center justify-end">
                   <button 

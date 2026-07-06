@@ -58,7 +58,7 @@ export const FakePlayersPanel = ({
   const [entries, setEntries] = useState<FakeEntry[]>(() =>
     Array.from({ length: maxVisible }, () => generateEntry(showMultiplier))
   );
-  const timerRef = useRef<ReturnType<typeof setInterval>>();
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     timerRef.current = setInterval(() => {
