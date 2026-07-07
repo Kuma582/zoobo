@@ -128,7 +128,7 @@ const Wallet = () => {
   };
 
   // UPI Copy & QR Download Helper functions
-  const UPI_ID = 'aapka_number@airtel'; // TODO: Update this when user provides it
+  const UPI_ID = '9910357567-0@airtel';
 
   const handleCopyUPI = () => {
     navigator.clipboard.writeText(UPI_ID).then(() => {
@@ -565,16 +565,7 @@ const Wallet = () => {
                   
                   <div className="text-3xl font-black text-white mb-2 tracking-tight">₹{amount}</div>
                   
-                  {/* UPI Details Box */}
-                  <div className="w-full bg-black/40 border border-white/5 rounded-xl p-3 mb-5 flex items-center justify-between text-xs">
-                    <div>
-                      <div className="text-gray-500 uppercase tracking-widest text-[9px] font-black">UPI ID</div>
-                      <div className="text-white font-bold font-mono">{UPI_ID}</div>
-                    </div>
-                    <button onClick={handleCopyUPI} className="p-2 bg-white/5 rounded-lg border border-white/10 text-cyber-purple hover:bg-white/10 transition-all flex items-center gap-1.5 font-bold uppercase text-[9px]">
-                      <Copy className="w-3.5 h-3.5" /> Copy ID
-                    </button>
-                  </div>
+                  {/* UPI Details Box removed as requested by the user */}
 
                   {/* Instructions */}
                   <div className="w-full text-left text-gray-400 text-[10px] space-y-1 bg-white/5 p-3 rounded-xl border border-white/5 mb-6">
