@@ -69,6 +69,19 @@ if (MONGODB_URI) {
       console.log('Created new MongoDB storage blob with local data');
     }
   }).catch(console.error);
+} else {
+  // Local File System Fallback
+  try {
+    const localDb = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'db.json'), 'utf8'));
+    dbCache = { games: localDb.games || [], leaderboard: localDb.leaderboard || [] };
+  } catch (err) {}
+  try {
+    usersCache = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'users.json'), 'utf8')) || [];
+  } catch (err) {}
+  try {
+    adminCache = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'admin.json'), 'utf8')) || { totalWithdrawn: 0, transactions: [] };
+  } catch (err) {}
+  console.log('Loaded data from local JSON files (No MONGODB_URI)');
 }
 
 const readDB = () => dbCache;
@@ -77,6 +90,8 @@ const writeUsers = (data) => {
   usersCache = data;
   if (MONGODB_URI) {
     Blob.updateOne({ key: 'main' }, { users: data }).catch(err => console.error('Failed to write users to MongoDB:', err));
+  } else {
+    try { fs.writeFileSync(path.join(__dirname, 'data', 'users.json'), JSON.stringify(data, null, 2)); } catch(e) {}
   }
 };
 
@@ -85,6 +100,8 @@ const writeAdmin = (data) => {
   adminCache = data;
   if (MONGODB_URI) {
     Blob.updateOne({ key: 'main' }, { admin: data }).catch(err => console.error('Failed to write admin to MongoDB:', err));
+  } else {
+    try { fs.writeFileSync(path.join(__dirname, 'data', 'admin.json'), JSON.stringify(data, null, 2)); } catch(e) {}
   }
 };
 
