@@ -38,8 +38,8 @@ const Wallet = () => {
     
     if (parsedAmount > 0) {
       if (activeModal === 'add') {
-        if (parsedAmount < 50) {
-          alert('Minimum deposit amount is ₹50');
+        if (parsedAmount < 1) {
+          alert('Minimum deposit amount is ₹1');
           return;
         }
         setPaymentStep('method_select');
