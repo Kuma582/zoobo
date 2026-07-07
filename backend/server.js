@@ -17,8 +17,20 @@ app.use(cors({
 app.use(express.json());
 
 // Database File Paths
-const dbPath = path.join(__dirname, 'data', 'db.json');
-const usersPath = path.join(__dirname, 'data', 'users.json');
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const dbPath = path.join(dataDir, 'db.json');
+const usersPath = path.join(dataDir, 'users.json');
+
+if (!fs.existsSync(dbPath)) {
+  fs.writeFileSync(dbPath, JSON.stringify({ games: [], leaderboard: [] }, null, 2));
+}
+if (!fs.existsSync(usersPath)) {
+  fs.writeFileSync(usersPath, JSON.stringify([], null, 2));
+}
 
 const readDB = () => JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
 const readUsers = () => JSON.parse(fs.readFileSync(usersPath, 'utf-8'));
@@ -305,9 +317,6 @@ app.get('/api/wallet/deposit/status/:txId', (req, res) => {
     }
 
     const tx = users[userIndex].wallet.transactions[txIndex];
-
-    // NOTE: Removed the automatic 8-second auto-approval timer.
-    // Manual deposits now remain Pending until approved/rejected by Admin.
 
     res.json({ status: tx.status, transaction: tx, balance: users[userIndex].wallet.balance });
   } catch (error) {
@@ -685,6 +694,6 @@ app.post('/api/admin/system/withdraw', adminAuth, (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });

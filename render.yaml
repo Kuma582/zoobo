@@ -1,7 +1,24 @@
 services:
+  # Backend Web Service
   - type: web
     name: zoobo-backend
     env: node
     rootDir: backend
     buildCommand: npm install
     startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 5000
+
+  # Frontend Static Site
+  - type: web
+    name: zoobo-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      # Optional: In case they want to use this variable during build.
+      # Right now client.ts falls back to hardcoded URL if not set.
+      - key: VITE_API_URL
+        value: https://zoobo-backend.onrender.com/api
