@@ -119,16 +119,8 @@ const Wallet = () => {
     const parsedAmount = parseInt(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) return;
 
-    try {
-      setPaymentStep('processing'); // Show spinner during request creation
-      const data = await requestDeposit(parsedAmount);
-      setCurrentTransactionId(data.transaction.id);
-      setTimer(600); // Reset 10 minutes countdown
-      setPaymentStep('qr');
-    } catch (err: any) {
-      alert(err.message || 'Failed to create deposit request');
-      setPaymentStep('method_select');
-    }
+    setTimer(600); // Reset 10 minutes countdown
+    setPaymentStep('qr');
   };
 
   const scrollToHistory = () => {
@@ -176,10 +168,11 @@ const Wallet = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // UTR Submit Handler
   const handleSubmitUTR = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentTransactionId) return;
+    const parsedAmount = parseInt(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) return;
+    
     if (!/^\d{10,16}$/.test(utr)) {
       setErrorMsg('Please enter a valid UTR number (10-16 digits)');
       return;
@@ -188,7 +181,7 @@ const Wallet = () => {
     try {
       setErrorMsg('');
       setPaymentStep('processing');
-      await submitDepositUtr(currentTransactionId, utr);
+      await submitDepositUtr(parsedAmount, utr);
       
       // Update step to submitted as the transaction is manually verified by the admin
       setPaymentStep('submitted');

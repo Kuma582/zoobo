@@ -237,49 +237,19 @@ app.post('/api/wallet/transaction', (req, res) => {
 
 // --- SECURE DEPOSIT FLOW ENDPOINTS ---
 
-app.post('/api/wallet/deposit/request', (req, res) => {
-  try {
-    const userId = req.headers['authorization'];
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-
-    const { amount } = req.body;
-    const parsedAmount = parseInt(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      return res.status(400).json({ error: 'Invalid deposit amount' });
-    }
-
-    const users = readUsers();
-    const userIndex = users.findIndex(u => u.id === userId);
-    if (userIndex === -1) return res.status(401).json({ error: 'User not found' });
-
-    const newTx = {
-      id: `tx_dep_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      type: 'deposit',
-      amount: parsedAmount,
-      status: 'Pending',
-      date: new Date().toISOString(),
-      reference: 'Pending UTR Submission',
-      utr: null,
-      submittedAt: null
-    };
-
-    // Note: Do NOT add amount to wallet balance yet!
-    users[userIndex].wallet.transactions.unshift(newTx);
-    writeUsers(users);
-
-    res.json({ message: 'Deposit request created', transaction: newTx });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to request deposit' });
-  }
-});
-
 app.post('/api/wallet/deposit/submit-utr', (req, res) => {
   try {
     const userId = req.headers['authorization'];
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { transactionId, utr } = req.body;
-    if (!transactionId || !utr || !/^\d{10,16}$/.test(utr)) {
+    const { amount, utr } = req.body;
+    const parsedAmount = parseInt(amount);
+    
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid deposit amount' });
+    }
+    
+    if (!utr || !/^\d{10,16}$/.test(utr)) {
       return res.status(400).json({ error: 'Please enter a valid UTR number (10-16 digits)' });
     }
 
@@ -296,22 +266,22 @@ app.post('/api/wallet/deposit/submit-utr', (req, res) => {
     const userIndex = users.findIndex(u => u.id === userId);
     if (userIndex === -1) return res.status(401).json({ error: 'User not found' });
 
-    const txIndex = users[userIndex].wallet.transactions.findIndex(t => t.id === transactionId);
-    if (txIndex === -1) {
-      return res.status(404).json({ error: 'Transaction not found' });
-    }
+    const newTx = {
+      id: `tx_dep_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      type: 'deposit',
+      amount: parsedAmount,
+      status: 'Pending',
+      date: new Date().toISOString(),
+      reference: 'Manual UPI Deposit',
+      utr: utr,
+      submittedAt: new Date().toISOString()
+    };
 
-    const tx = users[userIndex].wallet.transactions[txIndex];
-    if (tx.status !== 'Pending') {
-      return res.status(400).json({ error: 'Transaction is already processed' });
-    }
-
-    tx.utr = utr;
-    tx.reference = `Pending Verification (UTR: ${utr})`;
-    tx.submittedAt = Date.now();
-
+    // Note: Do NOT add amount to wallet balance yet, admin has to approve!
+    users[userIndex].wallet.transactions.unshift(newTx);
     writeUsers(users);
-    res.json({ message: 'UTR submitted for verification', transaction: tx });
+
+    res.json({ message: 'Deposit verification submitted', transaction: newTx });
   } catch (error) {
     res.status(500).json({ error: 'Failed to submit UTR' });
   }

@@ -101,11 +101,11 @@ export const requestDeposit = async (amount: number) => {
   return data;
 };
 
-export const submitDepositUtr = async (transactionId: string, utr: string) => {
+export const submitDepositUtr = async (amount: number, utr: string) => {
   const res = await fetch(`${BASE_URL}/wallet/deposit/submit-utr`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ transactionId, utr }),
+    body: JSON.stringify({ amount, utr })
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to submit UTR');
