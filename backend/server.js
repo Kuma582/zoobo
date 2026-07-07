@@ -32,18 +32,34 @@ if (!fs.existsSync(usersPath)) {
   fs.writeFileSync(usersPath, JSON.stringify([], null, 2));
 }
 
-const readDB = () => JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
-const readUsers = () => JSON.parse(fs.readFileSync(usersPath, 'utf-8'));
-const writeUsers = (data) => fs.writeFileSync(usersPath, JSON.stringify(data, null, 2));
+let dbCache = JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
+let usersCache = JSON.parse(fs.readFileSync(usersPath, 'utf-8'));
+
+const readDB = () => dbCache;
+const readUsers = () => usersCache;
+const writeUsers = (data) => {
+  usersCache = data;
+  fs.writeFile(usersPath, JSON.stringify(data, null, 2), (err) => {
+    if (err) console.error('Failed to write users:', err);
+  });
+};
 
 const adminPath = path.join(__dirname, 'data', 'admin.json');
-const readAdmin = () => {
-  if (!fs.existsSync(adminPath)) {
-    fs.writeFileSync(adminPath, JSON.stringify({ totalWithdrawn: 0, transactions: [] }, null, 2));
-  }
-  return JSON.parse(fs.readFileSync(adminPath, 'utf-8'));
+let adminCache;
+if (!fs.existsSync(adminPath)) {
+  adminCache = { totalWithdrawn: 0, transactions: [] };
+  fs.writeFileSync(adminPath, JSON.stringify(adminCache, null, 2));
+} else {
+  adminCache = JSON.parse(fs.readFileSync(adminPath, 'utf-8'));
+}
+
+const readAdmin = () => adminCache;
+const writeAdmin = (data) => {
+  adminCache = data;
+  fs.writeFile(adminPath, JSON.stringify(data, null, 2), (err) => {
+    if (err) console.error('Failed to write admin:', err);
+  });
 };
-const writeAdmin = (data) => fs.writeFileSync(adminPath, JSON.stringify(data, null, 2));
 
 // Memory store for tracking online users via heartbeat
 const activeUsers = new Map(); // userId -> lastSeenTimestamp
