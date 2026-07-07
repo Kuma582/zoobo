@@ -1,11 +1,4 @@
 {
-  "totalWithdrawn": 400,
-  "transactions": [
-    {
-      "id": "admin_tx_1783315012607",
-      "amount": 400,
-      "date": "2026-07-06T05:16:52.607Z",
-      "reference": "Admin Profit Extraction"
-    }
-  ]
+  "totalWithdrawn": 0,
+  "transactions": []
 }
