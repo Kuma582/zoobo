@@ -147,12 +147,8 @@ const Wallet = () => {
   };
 
   const handleDownloadQR = () => {
-    const link = document.createElement('a');
-    link.href = '/qr.jpg';
-    link.download = 'zoobo_deposit_qr.jpg';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`upi://pay?pa=${UPI_ID}&pn=Zoobo&am=${amount}&cu=INR`)}`;
+    window.open(qrUrl, '_blank');
   };
 
   // Timer Effect for QR Payment
@@ -566,7 +562,11 @@ const Wallet = () => {
 
                   <div className="bg-white p-3 rounded-2xl mb-4 shadow-[0_0_30px_rgba(255,255,255,0.15)] flex justify-center">
                     <div className="w-40 h-40 overflow-hidden rounded-xl">
-                      <img src="/qr.jpg" alt="UPI QR Code" className="w-full h-full object-cover" />
+                      <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`upi://pay?pa=${UPI_ID}&pn=Zoobo&am=${amount}&cu=INR`)}`} 
+                        alt="UPI QR Code" 
+                        className="w-full h-full object-cover" 
+                      />
                     </div>
                   </div>
                   
