@@ -218,7 +218,7 @@ app.post('/api/auth/register', async (req, res) => {
     const emailTrimmed = email.trim();
 
     // Email validation
-    if (!/^\\S+@\\S+\\.\\S+$/.test(emailTrimmed)) return res.status(400).json({ error: 'Invalid email address.' });
+    if (!/^\S+@\S+\.\S+$/.test(emailTrimmed)) return res.status(400).json({ error: 'Invalid email address.' });
 
     // Username validation
     if (trimmed.length < 3) return res.status(400).json({ error: 'Username must be at least 3 characters long.' });
@@ -391,7 +391,7 @@ app.post('/api/wallet/deposit/submit-utr', async (req, res) => {
       return res.status(400).json({ error: 'Invalid deposit amount' });
     }
     
-    if (!utr || !/^\\d{10,16}$/.test(utr)) {
+    if (!utr || !/^\d{10,16}$/.test(utr)) {
       return res.status(400).json({ error: 'Please enter a valid UTR number (10-16 digits)' });
     }
 
