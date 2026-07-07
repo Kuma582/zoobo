@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://zoobo.onrender.com/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://zoobo-backend.onrender.com/api';
 
 const getHeaders = () => {
   const token = localStorage.getItem('zoobo_token');
