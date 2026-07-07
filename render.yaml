@@ -21,4 +21,4 @@ services:
       # Optional: In case they want to use this variable during build.
       # Right now client.ts falls back to hardcoded URL if not set.
       - key: VITE_API_URL
-        value: https://zoobo-backend.onrender.com/api
+        value: https://zoobo-1.onrender.com/api
