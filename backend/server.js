@@ -16,47 +16,72 @@ app.use(cors({
 }));
 app.use(express.json());
 
-const mongoose = require('mongoose');
+const { Pool } = require('pg');
 
-// MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI;
-if (!MONGODB_URI) {
-  console.warn('WARNING: MONGODB_URI is not set. Data will not be saved permanently!');
-} else {
-  mongoose.connect(MONGODB_URI)
-    .then(() => console.log('Connected to MongoDB'))
-    .catch(err => console.error('MongoDB connection error:', err));
+// PostgreSQL Connection
+const DATABASE_URL = process.env.DATABASE_URL;
+let pgPool = null;
+
+if (DATABASE_URL) {
+  pgPool = new Pool({
+    connectionString: DATABASE_URL,
+  });
 }
-
-const BlobSchema = new mongoose.Schema({
-  key: { type: String, unique: true },
-  users: Array,
-  admin: Object,
-  db: Object
-});
-const Blob = mongoose.model('Blob', BlobSchema);
 
 let dbCache = { games: [], leaderboard: [] };
 let usersCache = [];
 let adminCache = { totalWithdrawn: 0, transactions: [] };
 
-// Load data from MongoDB on startup
-if (MONGODB_URI) {
-  Blob.findOne({ key: 'main' }).then(blob => {
+async function initDB() {
+  if (!DATABASE_URL) {
+    console.warn('WARNING: DATABASE_URL is not set. Data will not be saved permanently!');
+    // Local File System Fallback
+    try {
+      const localDb = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'db.json'), 'utf8'));
+      dbCache = { games: localDb.games || [], leaderboard: localDb.leaderboard || [] };
+    } catch (err) {}
+    try {
+      usersCache = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'users.json'), 'utf8')) || [];
+    } catch (err) {}
+    try {
+      adminCache = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'admin.json'), 'utf8')) || { totalWithdrawn: 0, transactions: [] };
+    } catch (err) {}
+    console.log('Loaded data from local JSON files (No DATABASE_URL)');
+    return;
+  }
+
+  try {
+    const client = await pgPool.connect();
+    console.log('Connected to PostgreSQL');
+    
+    // Create table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS blobs (
+        key VARCHAR(255) PRIMARY KEY,
+        users JSONB,
+        admin JSONB,
+        db JSONB
+      )
+    `);
+
+    // Fetch existing initial data
+    const res = await client.query("SELECT * FROM blobs WHERE key = 'main'");
+    const blob = res.rows[0];
+
     if (blob) {
       if (blob.db && blob.db.games && blob.db.games.length > 0) {
         dbCache = blob.db;
       } else {
-        // Fallback to local file if MongoDB DB is empty
+        // Fallback to local file if DB is empty
         try {
           const localDb = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'db.json'), 'utf8'));
           dbCache = { games: localDb.games || [], leaderboard: localDb.leaderboard || [] };
-          Blob.updateOne({ key: 'main' }, { db: dbCache }).catch(console.error);
+          await client.query("UPDATE blobs SET db = $1 WHERE key = 'main'", [JSON.stringify(dbCache)]);
         } catch (err) {}
       }
       if (blob.users) usersCache = blob.users;
       if (blob.admin) adminCache = blob.admin;
-      console.log(`Loaded ${usersCache.length} users from MongoDB`);
+      console.log(`Loaded ${usersCache.length} users from PostgreSQL`);
     } else {
       // If no blob exists, load from local JSON files as fallback
       try {
@@ -65,31 +90,28 @@ if (MONGODB_URI) {
       } catch (err) {
         console.error('No local db.json found');
       }
-      new Blob({ key: 'main', users: usersCache, admin: adminCache, db: dbCache }).save();
-      console.log('Created new MongoDB storage blob with local data');
+      await client.query(
+        "INSERT INTO blobs (key, users, admin, db) VALUES ('main', $1, $2, $3)",
+        [JSON.stringify(usersCache), JSON.stringify(adminCache), JSON.stringify(dbCache)]
+      );
+      console.log('Created new PostgreSQL storage blob with local data');
     }
-  }).catch(console.error);
-} else {
-  // Local File System Fallback
-  try {
-    const localDb = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'db.json'), 'utf8'));
-    dbCache = { games: localDb.games || [], leaderboard: localDb.leaderboard || [] };
-  } catch (err) {}
-  try {
-    usersCache = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'users.json'), 'utf8')) || [];
-  } catch (err) {}
-  try {
-    adminCache = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'admin.json'), 'utf8')) || { totalWithdrawn: 0, transactions: [] };
-  } catch (err) {}
-  console.log('Loaded data from local JSON files (No MONGODB_URI)');
+    client.release();
+  } catch (error) {
+    console.error('PostgreSQL connection error:', error);
+  }
 }
+
+// Initialize database on startup
+initDB();
 
 const readDB = () => dbCache;
 const readUsers = () => usersCache;
 const writeUsers = (data) => {
   usersCache = data;
-  if (MONGODB_URI) {
-    Blob.updateOne({ key: 'main' }, { users: data }).catch(err => console.error('Failed to write users to MongoDB:', err));
+  if (DATABASE_URL && pgPool) {
+    pgPool.query("UPDATE blobs SET users = $1 WHERE key = 'main'", [JSON.stringify(data)])
+      .catch(err => console.error('Failed to write users to PostgreSQL:', err));
   } else {
     try { fs.writeFileSync(path.join(__dirname, 'data', 'users.json'), JSON.stringify(data, null, 2)); } catch(e) {}
   }
@@ -98,8 +120,9 @@ const writeUsers = (data) => {
 const readAdmin = () => adminCache;
 const writeAdmin = (data) => {
   adminCache = data;
-  if (MONGODB_URI) {
-    Blob.updateOne({ key: 'main' }, { admin: data }).catch(err => console.error('Failed to write admin to MongoDB:', err));
+  if (DATABASE_URL && pgPool) {
+    pgPool.query("UPDATE blobs SET admin = $1 WHERE key = 'main'", [JSON.stringify(data)])
+      .catch(err => console.error('Failed to write admin to PostgreSQL:', err));
   } else {
     try { fs.writeFileSync(path.join(__dirname, 'data', 'admin.json'), JSON.stringify(data, null, 2)); } catch(e) {}
   }
@@ -139,9 +162,12 @@ app.post('/api/auth/register', (req, res) => {
     if (password.length < 4) return res.status(400).json({ error: 'Password must be at least 4 characters long.' });
 
     const users = readUsers();
-    // Case-insensitive duplicate check
+    // Case-insensitive duplicate check for username and email
     if (users.find(u => u.username.toLowerCase() === trimmed.toLowerCase())) {
-      return res.status(400).json({ error: 'Username already exists. Please choose another.' });
+      return res.status(400).json({ error: 'Username already exists. Please login instead.' });
+    }
+    if (users.find(u => u.email && u.email.toLowerCase() === emailTrimmed.toLowerCase())) {
+      return res.status(400).json({ error: 'Email already registered. Please login instead.' });
     }
 
     const newUser = {
