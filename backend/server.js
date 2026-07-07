@@ -44,13 +44,29 @@ let adminCache = { totalWithdrawn: 0, transactions: [] };
 if (MONGODB_URI) {
   Blob.findOne({ key: 'main' }).then(blob => {
     if (blob) {
-      if (blob.db) dbCache = blob.db;
+      if (blob.db && blob.db.games && blob.db.games.length > 0) {
+        dbCache = blob.db;
+      } else {
+        // Fallback to local file if MongoDB DB is empty
+        try {
+          const localDb = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'db.json'), 'utf8'));
+          dbCache = { games: localDb.games || [], leaderboard: localDb.leaderboard || [] };
+          Blob.updateOne({ key: 'main' }, { db: dbCache }).catch(console.error);
+        } catch (err) {}
+      }
       if (blob.users) usersCache = blob.users;
       if (blob.admin) adminCache = blob.admin;
       console.log(`Loaded ${usersCache.length} users from MongoDB`);
     } else {
+      // If no blob exists, load from local JSON files as fallback
+      try {
+        const localDb = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'db.json'), 'utf8'));
+        dbCache = { games: localDb.games || [], leaderboard: localDb.leaderboard || [] };
+      } catch (err) {
+        console.error('No local db.json found');
+      }
       new Blob({ key: 'main', users: usersCache, admin: adminCache, db: dbCache }).save();
-      console.log('Created new MongoDB storage blob');
+      console.log('Created new MongoDB storage blob with local data');
     }
   }).catch(console.error);
 }
@@ -74,6 +90,15 @@ const writeAdmin = (data) => {
 
 // Memory store for tracking online users via heartbeat
 const activeUsers = new Map(); // userId -> lastSeenTimestamp
+
+// --- PUBLIC ROUTES ---
+app.get('/api/games', (req, res) => {
+  res.json(readDB().games);
+});
+
+app.get('/api/leaderboard', (req, res) => {
+  res.json(readDB().leaderboard);
+});
 
 // --- AUTH ROUTES ---
 
