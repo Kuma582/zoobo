@@ -457,14 +457,14 @@ const Wallet = () => {
                         placeholder="0"
                         autoFocus
                         className="w-full bg-cyber-black border-2 border-white/10 rounded-2xl py-4 pl-10 pr-4 text-3xl font-black text-white focus:outline-none focus:border-cyber-purple transition-colors"
-                        min={activeModal === 'withdraw' ? 100 : activeModal === 'add' ? 50 : 1}
+                        min={activeModal === 'withdraw' ? 100 : 1}
                         max={activeModal === 'withdraw' ? Math.min(50000, balance) : activeModal === 'transfer' ? balance : undefined}
                         required
                       />
                     </div>
 
-                    <div className="grid grid-cols-4 gap-2 mb-8">
-                      {[50, 100, 500, 1000].map(amt => (
+                    <div className="grid grid-cols-3 gap-2 mb-8">
+                      {[1, 50, 100].map(amt => (
                         <button
                           key={amt}
                           type="button"

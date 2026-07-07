@@ -16,49 +16,60 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Database File Paths
-const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+const mongoose = require('mongoose');
+
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGODB_URI;
+if (!MONGODB_URI) {
+  console.warn('WARNING: MONGODB_URI is not set. Data will not be saved permanently!');
+} else {
+  mongoose.connect(MONGODB_URI)
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('MongoDB connection error:', err));
 }
 
-const dbPath = path.join(dataDir, 'db.json');
-const usersPath = path.join(dataDir, 'users.json');
+const BlobSchema = new mongoose.Schema({
+  key: { type: String, unique: true },
+  users: Array,
+  admin: Object,
+  db: Object
+});
+const Blob = mongoose.model('Blob', BlobSchema);
 
-if (!fs.existsSync(dbPath)) {
-  fs.writeFileSync(dbPath, JSON.stringify({ games: [], leaderboard: [] }, null, 2));
-}
-if (!fs.existsSync(usersPath)) {
-  fs.writeFileSync(usersPath, JSON.stringify([], null, 2));
-}
+let dbCache = { games: [], leaderboard: [] };
+let usersCache = [];
+let adminCache = { totalWithdrawn: 0, transactions: [] };
 
-let dbCache = JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
-let usersCache = JSON.parse(fs.readFileSync(usersPath, 'utf-8'));
+// Load data from MongoDB on startup
+if (MONGODB_URI) {
+  Blob.findOne({ key: 'main' }).then(blob => {
+    if (blob) {
+      if (blob.db) dbCache = blob.db;
+      if (blob.users) usersCache = blob.users;
+      if (blob.admin) adminCache = blob.admin;
+      console.log(`Loaded ${usersCache.length} users from MongoDB`);
+    } else {
+      new Blob({ key: 'main', users: usersCache, admin: adminCache, db: dbCache }).save();
+      console.log('Created new MongoDB storage blob');
+    }
+  }).catch(console.error);
+}
 
 const readDB = () => dbCache;
 const readUsers = () => usersCache;
 const writeUsers = (data) => {
   usersCache = data;
-  fs.writeFile(usersPath, JSON.stringify(data, null, 2), (err) => {
-    if (err) console.error('Failed to write users:', err);
-  });
+  if (MONGODB_URI) {
+    Blob.updateOne({ key: 'main' }, { users: data }).catch(err => console.error('Failed to write users to MongoDB:', err));
+  }
 };
-
-const adminPath = path.join(__dirname, 'data', 'admin.json');
-let adminCache;
-if (!fs.existsSync(adminPath)) {
-  adminCache = { totalWithdrawn: 0, transactions: [] };
-  fs.writeFileSync(adminPath, JSON.stringify(adminCache, null, 2));
-} else {
-  adminCache = JSON.parse(fs.readFileSync(adminPath, 'utf-8'));
-}
 
 const readAdmin = () => adminCache;
 const writeAdmin = (data) => {
   adminCache = data;
-  fs.writeFile(adminPath, JSON.stringify(data, null, 2), (err) => {
-    if (err) console.error('Failed to write admin:', err);
-  });
+  if (MONGODB_URI) {
+    Blob.updateOne({ key: 'main' }, { admin: data }).catch(err => console.error('Failed to write admin to MongoDB:', err));
+  }
 };
 
 // Memory store for tracking online users via heartbeat
