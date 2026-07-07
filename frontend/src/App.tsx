@@ -3,6 +3,7 @@ import MainLayout from './layouts/MainLayout.tsx';
 import { WalletProvider } from './context/WalletContext.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
 import ProtectedRoute from './components/ProtectedRoute.tsx';
+import BackgroundMusic from './components/common/BackgroundMusic.tsx';
 
 // Pages
 import Home from './pages/Home.tsx';
@@ -35,6 +36,7 @@ function App() {
     <Router>
       <AuthProvider>
         <WalletProvider>
+          <BackgroundMusic />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
