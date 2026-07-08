@@ -61,6 +61,12 @@ export const fetchLeaderboard = async () => {
   return res.json();
 };
 
+export const fetchGameSettings = async () => {
+  const res = await fetch(`${BASE_URL}/games/settings`);
+  if (!res.ok) throw new Error('Failed to fetch game settings');
+  return res.json();
+};
+
 
 export const sendHeartbeat = async () => {
   const res = await fetch(`${BASE_URL}/auth/heartbeat`, {
@@ -132,6 +138,28 @@ export const verifyRazorpayDeposit = async (paymentId: string, amount: number) =
   return data;
 };
 
+export const createCashfreeOrder = async (amount: number) => {
+  const res = await fetch(`${BASE_URL}/wallet/deposit/cashfree-order`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ amount }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to create Cashfree order');
+  return data; // returns { payment_session_id, order_id }
+};
+
+export const verifyCashfreeDeposit = async (orderId: string) => {
+  const res = await fetch(`${BASE_URL}/wallet/deposit/cashfree-verify`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ orderId }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to verify Cashfree deposit');
+  return data; // returns updated balance
+};
+
 export const getAdminToken = () => localStorage.getItem('zoobo_admin_token');
 export const setAdminToken = (token: string) => localStorage.setItem('zoobo_admin_token', token);
 export const clearAdminToken = () => localStorage.removeItem('zoobo_admin_token');
@@ -163,6 +191,17 @@ export const fetchAdminStats = async () => {
   });
   if (!res.ok) throw new Error('Failed to fetch admin stats');
   return res.json();
+};
+
+export const updateAdminSettings = async (winPercentage: number) => {
+  const res = await fetch(`${BASE_URL}/admin/settings`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ winPercentage }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update settings');
+  return data;
 };
 
 export const fetchAdminUsers = async () => {

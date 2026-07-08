@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Gem, Settings, Bomb, ShieldAlert, Zap, CircleDollarSign } from 'lucide-react';
 import { useWallet } from '../../context/WalletContext';
+import { fetchGameSettings } from '../../api/client';
 
 interface TreasureBombGameProps {
   onBack: () => void;
@@ -31,6 +32,17 @@ const TreasureBombGame = ({ onBack }: TreasureBombGameProps) => {
 
   // Shake effect on loss
   const [shake, setShake] = useState(false);
+
+  // Global Win Percentage
+  const [winPercentage, setWinPercentage] = useState(50);
+
+  useEffect(() => {
+    fetchGameSettings().then(res => {
+      if (res && res.winPercentage) {
+        setWinPercentage(res.winPercentage);
+      }
+    }).catch(e => console.error("Failed to fetch win percentage:", e));
+  }, []);
 
   const calculateMultiplier = (revealed: number, bombs: number) => {
     // Math formula to approximate true odds
@@ -76,12 +88,47 @@ const TreasureBombGame = ({ onBack }: TreasureBombGameProps) => {
 
   const handleTileClick = (index: number) => {
     if (gameState !== 'PLAYING' || revealedTiles.has(index)) return;
-    
-    const newRevealed = new Set(revealedTiles).add(index);
-    setRevealedTiles(newRevealed);
 
     if (bombIndices.has(index)) {
+      // Secret Admin Win Percentage Logic (Second Chance)
+      // If winPercentage > 50, user has a chance to survive the bomb
+      let surviveChance = 0;
+      if (winPercentage > 50) {
+        surviveChance = (winPercentage - 50) / 100; // up to 50% chance to survive
+      }
+
+      if (Math.random() < surviveChance) {
+        // Miraculously survive! Move the bomb to an unrevealed, non-bomb tile
+        const newBombs = new Set(bombIndices);
+        newBombs.delete(index);
+        
+        let availableTiles = [];
+        for(let i=0; i<GRID_SIZE; i++) {
+          if (!revealedTiles.has(i) && !newBombs.has(i) && i !== index) {
+            availableTiles.push(i);
+          }
+        }
+        
+        if (availableTiles.length > 0) {
+          const replacement = availableTiles[Math.floor(Math.random() * availableTiles.length)];
+          newBombs.add(replacement);
+          setBombIndices(newBombs);
+          
+          // Proceed as SAFE
+          const newRevealed = new Set(revealedTiles).add(index);
+          setRevealedTiles(newRevealed);
+          updateMultipliers(newRevealed.size);
+          
+          if (newRevealed.size === GRID_SIZE - bombCount) {
+            handleCashOut(newRevealed.size);
+          }
+          return;
+        }
+      }
+
       // LOSE
+      const newRevealed = new Set(revealedTiles).add(index);
+      setRevealedTiles(newRevealed);
       setShake(true);
       setGameState('ENDED');
       // Reveal everything
@@ -91,6 +138,8 @@ const TreasureBombGame = ({ onBack }: TreasureBombGameProps) => {
       setTimeout(() => setShake(false), 500);
     } else {
       // SAFE
+      const newRevealed = new Set(revealedTiles).add(index);
+      setRevealedTiles(newRevealed);
       updateMultipliers(newRevealed.size);
       
       // Check if won completely

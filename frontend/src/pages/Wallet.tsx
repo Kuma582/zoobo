@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Plus, History, CheckCircle2, Clock, Send, ChevronRight, X, Loader2, Copy, Download, AlertCircle, CreditCard, Landmark, RefreshCcw } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
-import { requestDeposit, submitDepositUtr, getDepositStatus, verifyRazorpayDeposit } from '../api/client';
+import { requestDeposit, submitDepositUtr, getDepositStatus, verifyRazorpayDeposit, createCashfreeOrder, verifyCashfreeDeposit } from '../api/client';
 
 const Wallet = () => {
   const { balance, transactions, withdrawMoney, transferMoney, refreshWallet } = useWallet();
@@ -111,6 +111,53 @@ const Wallet = () => {
     } catch (err) {
       console.error('Razorpay SDK failed to load', err);
       alert('Razorpay payment gateway failed to load. Please try again or use manual UPI.');
+      setPaymentStep('method_select');
+    }
+  };
+
+  const handleSelectCashfree = async () => {
+    const parsedAmount = parseInt(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) return;
+
+    setPaymentStep('processing');
+    try {
+      // 1. Create Order
+      const orderRes = await createCashfreeOrder(parsedAmount);
+      
+      // 2. Initialize SDK
+      const cashfree = (window as any).Cashfree({
+        mode: "sandbox" // change to "production" in production environment
+      });
+
+      // 3. Checkout
+      cashfree.checkout({
+        paymentSessionId: orderRes.payment_session_id,
+        returnUrl: `http://localhost:5173/wallet?order_id=${orderRes.order_id}`,
+      }).then((result: any) => {
+        if(result.error){
+          setErrorMsg(result.error.message || 'Cashfree payment failed');
+          setPaymentStep('failed');
+        }
+        if(result.redirect){
+          console.log("Cashfree redirecting...");
+        }
+        if(result.paymentDetails){
+          setPaymentStep('verifying');
+          verifyCashfreeDeposit(orderRes.order_id)
+            .then(() => {
+              refreshWallet();
+              setPaymentStep('success');
+            })
+            .catch(err => {
+              setErrorMsg(err.message || 'Cashfree verification failed');
+              setPaymentStep('failed');
+            });
+        }
+      });
+      
+    } catch (err: any) {
+      console.error('Cashfree SDK Error', err);
+      alert(err.message || 'Cashfree gateway failed to load. Please try again.');
       setPaymentStep('method_select');
     }
   };
@@ -508,6 +555,24 @@ const Wallet = () => {
                         <div className="text-left">
                           <div className="text-sm font-bold text-white">Online Payment (Razorpay)</div>
                           <div className="text-[10px] text-gray-500">Pay via UPI, Cards, Netbanking instantly</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-white transition-colors" />
+                    </button>
+
+
+                    {/* Cashfree Payment Option */}
+                    <button 
+                      onClick={handleSelectCashfree}
+                      className="w-full flex items-center justify-between bg-black/40 border border-white/5 hover:border-[#FF7F00]/50 p-4 rounded-2xl transition-all group"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-10 h-10 rounded-xl bg-[#FF7F00]/10 flex items-center justify-center border border-[#FF7F00]/20 text-[#FF7F00] group-hover:scale-105 transition-transform">
+                          <CreditCard className="w-5 h-5" />
+                        </div>
+                        <div className="text-left">
+                          <div className="text-sm font-bold text-white">Online Payment (Cashfree)</div>
+                          <div className="text-[10px] text-gray-500">Pay via UPI, Cards, Netbanking securely</div>
                         </div>
                       </div>
                       <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-white transition-colors" />

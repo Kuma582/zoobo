@@ -71,7 +71,8 @@ async function initDB() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS admin_stats (
         id INT PRIMARY KEY DEFAULT 1,
-        total_withdrawn FLOAT DEFAULT 0
+        total_withdrawn FLOAT DEFAULT 0,
+        win_percentage INT DEFAULT 50
       )
     `);
 
@@ -97,7 +98,12 @@ async function initDB() {
     // Initialize admin_stats
     const adminRes = await client.query("SELECT * FROM admin_stats WHERE id = 1");
     if (adminRes.rowCount === 0) {
-      await client.query("INSERT INTO admin_stats (id, total_withdrawn) VALUES (1, 0)");
+      await client.query("INSERT INTO admin_stats (id, total_withdrawn, win_percentage) VALUES (1, 0, 50)");
+    } else {
+      // Ensure win_percentage column exists in case of old DB
+      try {
+        await client.query("ALTER TABLE admin_stats ADD COLUMN win_percentage INT DEFAULT 50");
+      } catch(e) {}
     }
 
     // Initialize games_db with local JSON fallback if empty
@@ -205,6 +211,15 @@ app.get('/api/leaderboard', async (req, res) => {
     const dbRes = await pgPool.query("SELECT leaderboard FROM games_db WHERE key = 'main'");
     res.json(dbRes.rows[0]?.leaderboard || []);
   } catch (e) { res.status(500).json({ error: 'Failed to fetch leaderboard' }); }
+});
+
+app.get('/api/games/settings', async (req, res) => {
+  try {
+    const adminStatsRes = await pgPool.query("SELECT win_percentage FROM admin_stats WHERE id = 1");
+    res.json({ winPercentage: adminStatsRes.rows[0]?.win_percentage || 50 });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch game settings' });
+  }
 });
 
 // --- AUTH ROUTES ---
@@ -480,6 +495,140 @@ app.post('/api/wallet/deposit/razorpay-success', async (req, res) => {
   }
 });
 
+// --- CASHFREE DEPOSIT ENDPOINTS ---
+
+const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID || '';
+const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY || '';
+const CASHFREE_ENV = process.env.CASHFREE_ENV || 'SANDBOX'; // SANDBOX or PRODUCTION
+const CASHFREE_API_URL = CASHFREE_ENV === 'PRODUCTION' ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
+
+app.post('/api/wallet/deposit/cashfree-order', async (req, res) => {
+  try {
+    const userId = req.headers['authorization'];
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { amount } = req.body;
+    const parsedAmount = parseInt(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid deposit amount' });
+    }
+
+    if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY) {
+      return res.status(500).json({ error: 'Cashfree credentials not configured on server' });
+    }
+
+    const orderId = `order_${userId}_${Date.now()}`;
+    const userRes = await pgPool.query("SELECT * FROM users WHERE id = $1", [userId]);
+    if (userRes.rowCount === 0) return res.status(404).json({ error: 'User not found' });
+    
+    const user = userRes.rows[0];
+
+    const orderPayload = {
+      order_id: orderId,
+      order_amount: parsedAmount,
+      order_currency: "INR",
+      customer_details: {
+        customer_id: user.id,
+        customer_name: user.username,
+        customer_email: user.email || "test@zoobo.com",
+        customer_phone: "9999999999"
+      },
+      order_meta: {
+        return_url: "http://localhost:5173/wallet?order_id={order_id}"
+      }
+    };
+
+    const response = await fetch(`${CASHFREE_API_URL}/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-client-id': CASHFREE_APP_ID,
+        'x-client-secret': CASHFREE_SECRET_KEY,
+        'x-api-version': '2023-08-01'
+      },
+      body: JSON.stringify(orderPayload)
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("Cashfree Order Error:", data);
+      throw new Error(data.message || 'Failed to create Cashfree order');
+    }
+
+    res.json({ payment_session_id: data.payment_session_id, order_id: orderId });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to initialize Cashfree payment' });
+  }
+});
+
+app.post('/api/wallet/deposit/cashfree-verify', async (req, res) => {
+  try {
+    const userId = req.headers['authorization'];
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { orderId } = req.body;
+    if (!orderId) return res.status(400).json({ error: 'Order ID is required' });
+
+    if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY) {
+      return res.status(500).json({ error: 'Cashfree credentials not configured on server' });
+    }
+
+    // Check with Cashfree API
+    const response = await fetch(`${CASHFREE_API_URL}/orders/${orderId}`, {
+      method: 'GET',
+      headers: {
+        'x-client-id': CASHFREE_APP_ID,
+        'x-client-secret': CASHFREE_SECRET_KEY,
+        'x-api-version': '2023-08-01'
+      }
+    });
+
+    const orderData = await response.json();
+    if (!response.ok) {
+      throw new Error(orderData.message || 'Failed to verify Cashfree order');
+    }
+
+    if (orderData.order_status !== 'PAID') {
+      return res.status(400).json({ error: `Payment not completed. Status: ${orderData.order_status}` });
+    }
+
+    const parsedAmount = parseFloat(orderData.order_amount);
+
+    const client = await pgPool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      const utrCheck = await client.query("SELECT id FROM transactions WHERE utr = $1 AND status = 'Success'", [orderId]);
+      if (utrCheck.rowCount > 0) {
+        throw new Error('This payment has already been credited to a wallet.');
+      }
+
+      const txId = `tx_cf_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      await client.query(`
+        INSERT INTO transactions (id, user_id, type, amount, status, reference, utr)
+        VALUES ($1, $2, 'deposit', $3, 'Success', $4, $5)
+      `, [txId, userId, parsedAmount, `Cashfree Ref: ${orderId}`, orderId]);
+
+      const updateRes = await client.query("UPDATE users SET balance = balance + $1 WHERE id = $2 RETURNING balance", [parsedAmount, userId]);
+      
+      await client.query('COMMIT');
+      
+      const txRes = await client.query('SELECT * FROM transactions WHERE id = $1', [txId]);
+
+      res.json({ message: 'Cashfree deposit credited successfully', balance: updateRes.rows[0].balance, transaction: txRes.rows[0] });
+    } catch(e) {
+      await client.query('ROLLBACK');
+      res.status(400).json({ error: e.message || 'Failed to verify Cashfree deposit' });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to verify Cashfree deposit' });
+  }
+});
+
 // --- ADMIN SYSTEM ENDPOINTS ---
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ZooboAdmin@2026';
@@ -516,8 +665,9 @@ app.get('/api/admin/stats', adminAuth, async (req, res) => {
     const pendingDeposits = parseInt(txStatsRes.rows[0].pending_deposits) || 0;
     const pendingWithdrawals = parseInt(txStatsRes.rows[0].pending_withdrawals) || 0;
 
-    const adminStatsRes = await pgPool.query("SELECT total_withdrawn FROM admin_stats WHERE id = 1");
+    const adminStatsRes = await pgPool.query("SELECT total_withdrawn, win_percentage FROM admin_stats WHERE id = 1");
     const withdrawnProfit = parseFloat(adminStatsRes.rows[0]?.total_withdrawn) || 0;
+    const winPercentage = parseInt(adminStatsRes.rows[0]?.win_percentage) || 50;
 
     const platformBankCash = totalDeposits - totalWithdrawals;
     const availableProfit = platformBankCash - totalUserBalances - withdrawnProfit;
@@ -543,10 +693,25 @@ app.get('/api/admin/stats', adminAuth, async (req, res) => {
       totalUserBalances,
       platformBankCash,
       withdrawnProfit,
-      availableProfit
+      availableProfit,
+      winPercentage
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch admin stats' });
+  }
+});
+
+app.post('/api/admin/settings', adminAuth, async (req, res) => {
+  try {
+    const { winPercentage } = req.body;
+    if (typeof winPercentage !== 'number' || winPercentage < 0 || winPercentage > 100) {
+      return res.status(400).json({ error: 'Invalid win percentage' });
+    }
+    
+    await pgPool.query("UPDATE admin_stats SET win_percentage = $1 WHERE id = 1", [winPercentage]);
+    res.json({ message: 'Settings updated successfully', winPercentage });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update settings' });
   }
 });
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, ArrowDownLeft, ArrowUpRight, Check, X, Search, RefreshCw, Landmark, AlertCircle, Edit3, DollarSign, ListCollapse, Wallet } from 'lucide-react';
+import { Users, ArrowDownLeft, ArrowUpRight, Check, X, Search, RefreshCw, Landmark, AlertCircle, Edit3, DollarSign, ListCollapse, Wallet, Settings, Save } from 'lucide-react';
 import { 
   fetchAdminStats, 
   fetchAdminUsers, 
@@ -13,7 +13,8 @@ import {
   withdrawSystemProfit,
   verifyAdminPassword,
   setAdminToken,
-  clearAdminToken
+  clearAdminToken,
+  updateAdminSettings
 } from '../api/client';
 
 interface AdminStats {
@@ -28,6 +29,7 @@ interface AdminStats {
   platformBankCash: number;
   withdrawnProfit: number;
   availableProfit: number;
+  winPercentage: number;
 }
 
 interface AdminUser {
@@ -73,10 +75,12 @@ const AdminPanel = () => {
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
   const [adjustmentAmount, setAdjustmentAmount] = useState('');
 
-  // Profit modal state
   const [showProfitModal, setShowProfitModal] = useState(false);
   const [profitAmount, setProfitAmount] = useState('');
   const [payoutAccount, setPayoutAccount] = useState('');
+  
+  const [tempWinPercentage, setTempWinPercentage] = useState<number>(50);
+  const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
 
   const loadAdminData = async () => {
     setLoading(true);
@@ -89,6 +93,7 @@ const AdminPanel = () => {
       setStats(statsData);
       setUsers(usersData);
       setTransactions(txData);
+      setTempWinPercentage(statsData.winPercentage || 50);
       setIsAdminAuthenticated(true);
     } catch (err: any) {
       console.error(err);
@@ -209,6 +214,19 @@ const AdminPanel = () => {
       loadAdminData();
     } catch (err: any) {
       alert(err.message || 'Failed to extract profit');
+    }
+  };
+
+  const handleUpdateSettings = async () => {
+    setIsUpdatingSettings(true);
+    try {
+      await updateAdminSettings(tempWinPercentage);
+      alert('Global Game Settings updated successfully!');
+      loadAdminData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update settings');
+    } finally {
+      setIsUpdatingSettings(false);
     }
   };
 
@@ -512,6 +530,43 @@ const AdminPanel = () => {
                 </div>
               </div>
             </div>
+
+            {/* Global Game Settings */}
+            <div className="lg:col-span-2 bg-[#121215] rounded-2xl border border-white/5 p-6 border-l-4 border-l-orange-500 mt-6">
+              <h3 className="text-sm font-black uppercase tracking-wider text-gray-400 mb-6 flex items-center gap-2">
+                <Settings className="w-4 h-4 text-orange-500" /> Global Game Settings
+              </h3>
+              
+              <div className="flex flex-col md:flex-row gap-6 items-end">
+                <div className="flex-1 w-full">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Global Win Percentage (RTP)</label>
+                    <span className="text-lg font-black text-orange-400">{tempWinPercentage}%</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    value={tempWinPercentage}
+                    onChange={(e) => setTempWinPercentage(Number(e.target.value))}
+                    className="w-full h-2 bg-black rounded-lg appearance-none cursor-pointer accent-orange-500 border border-white/10"
+                  />
+                  <div className="text-[9px] text-gray-500 mt-2">Adjusting this controls how often users win across all games (Aviator, TreasureBomb, etc.) to keep them engaged.</div>
+                </div>
+                
+                <div className="flex items-center justify-end shrink-0 w-full md:w-auto">
+                  <button 
+                    onClick={handleUpdateSettings}
+                    disabled={isUpdatingSettings || tempWinPercentage === stats?.winPercentage}
+                    className="py-3 px-6 w-full md:w-auto rounded-xl text-xs font-black uppercase tracking-wider bg-orange-600 border-b-4 border-orange-900 text-white hover:brightness-110 active:border-b-0 active:translate-y-[4px] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                  >
+                    {isUpdatingSettings ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} 
+                    Save Settings
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 

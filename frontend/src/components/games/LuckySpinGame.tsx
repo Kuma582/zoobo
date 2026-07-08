@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Trophy, Settings, Sparkles, Coins, Gift } from 'lucide-react';
 import { useWallet } from '../../context/WalletContext';
+import { fetchGameSettings } from '../../api/client';
 
 interface LuckySpinGameProps {
   onBack: () => void;
@@ -43,6 +44,17 @@ const LuckySpinGame = ({ onBack }: LuckySpinGameProps) => {
     return () => clearInterval(interval);
   }, []);
 
+  // Global Win Percentage
+  const [winPercentage, setWinPercentage] = useState(50);
+
+  useEffect(() => {
+    fetchGameSettings().then(res => {
+      if (res && res.winPercentage) {
+        setWinPercentage(res.winPercentage);
+      }
+    }).catch(e => console.error("Failed to fetch win percentage:", e));
+  }, []);
+
   const handleSpin = () => {
     if (gameState !== 'IDLE') return;
     if (balance < selectedChip) {
@@ -54,8 +66,9 @@ const LuckySpinGame = ({ onBack }: LuckySpinGameProps) => {
       setBetAmount(selectedChip);
       setGameState('SPINNING');
       
-      // Determine outcome
-      const isWin = Math.random() > 0.5;
+      // Determine outcome based on winPercentage
+      // winPercentage is out of 100
+      const isWin = Math.random() < (winPercentage / 100);
       let targetIndex = 1; // Default to a 0x slice
       
       if (isWin) {

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Plus, Minus, Check, Menu, Wallet } from 'lucide-react';
 import { useWallet } from '../../context/WalletContext';
 import FakePlayersPanel from './FakePlayersPanel';
+import { fetchGameSettings } from '../../api/client';
 
 interface AviatorGameProps {
   onBack: () => void;
@@ -56,6 +57,17 @@ const AviatorGame = ({ onBack }: AviatorGameProps) => {
   // UFC Player count state
   const [onlinePlayers, setOnlinePlayers] = useState(328);
 
+  // Global Win Percentage
+  const [winPercentage, setWinPercentage] = useState(50);
+
+  useEffect(() => {
+    fetchGameSettings().then(res => {
+      if (res && res.winPercentage) {
+        setWinPercentage(res.winPercentage);
+      }
+    }).catch(e => console.error("Failed to fetch win percentage:", e));
+  }, []);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setOnlinePlayers(prev => {
@@ -85,13 +97,33 @@ const AviatorGame = ({ onBack }: AviatorGameProps) => {
   }, [gameState]);
 
   const startGame = () => {
-    // Generate crash point (house edge weighted)
+    // Generate crash point based on global win percentage
     const r = Math.random();
     let crash = 1.01;
-    if (r < 0.12) crash = 1.01 + Math.random() * 0.15; // Quick instant crash
-    else if (r < 0.5) crash = 1.16 + Math.random() * 1.24; 
-    else if (r < 0.8) crash = 2.4 + Math.random() * 2.6; 
-    else if (r < 0.95) crash = 5.0 + Math.random() * 5.0; 
+    
+    // Default config logic (50%)
+    let quickCrashProb = 0.12;
+    let midCrashProb = 0.50;
+    let highCrashProb = 0.80;
+    let hugeCrashProb = 0.95;
+
+    // Shift curve based on winPercentage (0 to 100)
+    // If winPercentage > 50, fewer quick crashes, more huge crashes
+    if (winPercentage > 50) {
+      const bonus = (winPercentage - 50) / 100; // up to 0.5
+      quickCrashProb = Math.max(0.01, quickCrashProb - bonus); // less early crashes
+      midCrashProb = Math.max(0.1, midCrashProb - (bonus / 2)); 
+      highCrashProb = Math.min(0.95, highCrashProb - (bonus / 2)); // push more to upper brackets
+    } else if (winPercentage < 50) {
+      const penalty = (50 - winPercentage) / 100; // up to 0.5
+      quickCrashProb = Math.min(0.5, quickCrashProb + penalty); // more early crashes
+      midCrashProb = Math.min(0.8, midCrashProb + penalty);
+    }
+
+    if (r < quickCrashProb) crash = 1.01 + Math.random() * 0.15; 
+    else if (r < midCrashProb) crash = 1.16 + Math.random() * 1.24; 
+    else if (r < highCrashProb) crash = 2.4 + Math.random() * 2.6; 
+    else if (r < hugeCrashProb) crash = 5.0 + Math.random() * 5.0; 
     else crash = 10.0 + Math.random() * 30.0; 
     
     setTargetCrash(crash);
