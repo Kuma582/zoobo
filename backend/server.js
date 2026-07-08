@@ -629,6 +629,137 @@ app.post('/api/wallet/deposit/cashfree-verify', async (req, res) => {
   }
 });
 
+// --- UPIGATEWAY DEPOSIT ENDPOINTS ---
+
+const UPIGATEWAY_KEY = process.env.UPIGATEWAY_KEY || '56cb8bb9-40c9-4b23-b768-07d023b0a03d';
+
+app.post('/api/wallet/deposit/upigateway-create', async (req, res) => {
+  try {
+    const userId = req.headers['authorization'];
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { amount } = req.body;
+    const parsedAmount = parseInt(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid deposit amount' });
+    }
+
+    const userRes = await pgPool.query("SELECT * FROM users WHERE id = $1", [userId]);
+    if (userRes.rowCount === 0) return res.status(404).json({ error: 'User not found' });
+    const user = userRes.rows[0];
+
+    const clientTxnId = `ZO_${userId}_${Date.now()}`;
+    const dateStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-'); // DD-MM-YYYY
+
+    const payload = {
+      key: UPIGATEWAY_KEY,
+      client_txn_id: clientTxnId,
+      amount: parsedAmount.toString(),
+      p_info: "Zoobo Wallet Deposit",
+      customer_name: user.username,
+      customer_email: user.email || "player@zoobo.com",
+      customer_mobile: "9999999999",
+      redirect_url: "http://localhost:5173/wallet"
+    };
+
+    const response = await fetch('https://merchant.upigateway.com/api/create_order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.status) {
+      console.error("UPIGateway Create Error:", data);
+      throw new Error(data.msg || 'Failed to create UPIGateway order');
+    }
+
+    // Save pending transaction with txn_date for later checking
+    const client = await pgPool.connect();
+    try {
+      await client.query(`
+        INSERT INTO transactions (id, user_id, type, amount, status, reference, utr)
+        VALUES ($1, $2, 'deposit', $3, 'Pending', $4, $5)
+      `, [clientTxnId, userId, parsedAmount, `UPI Order Created - ${dateStr}`, '']);
+    } finally {
+      client.release();
+    }
+
+    // data.data.payment_url has the checkout page
+    res.json({ payment_url: data.data.payment_url, client_txn_id: clientTxnId, txn_date: dateStr });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to initialize UPI payment' });
+  }
+});
+
+app.post('/api/wallet/deposit/upigateway-status', async (req, res) => {
+  try {
+    const userId = req.headers['authorization'];
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { client_txn_id, txn_date } = req.body;
+    if (!client_txn_id || !txn_date) return res.status(400).json({ error: 'Order ID and Date are required' });
+
+    const response = await fetch('https://merchant.upigateway.com/api/check_order_status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: UPIGATEWAY_KEY,
+        client_txn_id: client_txn_id,
+        txn_date: txn_date
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.status) {
+      throw new Error(data.msg || 'Failed to verify UPI order');
+    }
+
+    // data.data.status will be 'success' or 'COMPLETED' etc. based on upigateway docs
+    const orderStatus = (data.data.status || '').toLowerCase();
+    
+    if (orderStatus !== 'success' && orderStatus !== 'completed') {
+      return res.status(400).json({ error: `Payment not completed yet. Status: ${orderStatus}` });
+    }
+
+    const client = await pgPool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      const txCheck = await client.query("SELECT * FROM transactions WHERE id = $1 AND user_id = $2", [client_txn_id, userId]);
+      if (txCheck.rowCount === 0) throw new Error('Transaction not found');
+      
+      const tx = txCheck.rows[0];
+      if (tx.status === 'Success') {
+        throw new Error('This payment has already been credited.');
+      }
+
+      const upiUtr = data.data.upi_txn_id || data.data.customer_vpa || 'VERIFIED';
+      
+      await client.query(`
+        UPDATE transactions 
+        SET status = 'Success', utr = $1, reference = $2 
+        WHERE id = $3
+      `, [upiUtr, `UPI Gateway Verified`, client_txn_id]);
+
+      const updateRes = await client.query("UPDATE users SET balance = balance + $1 WHERE id = $2 RETURNING balance", [tx.amount, userId]);
+      
+      await client.query('COMMIT');
+      
+      res.json({ message: 'UPI deposit credited successfully', balance: updateRes.rows[0].balance });
+    } catch(e) {
+      await client.query('ROLLBACK');
+      res.status(400).json({ error: e.message || 'Failed to verify UPI deposit' });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to verify UPI deposit' });
+  }
+});
+
 // --- ADMIN SYSTEM ENDPOINTS ---
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ZooboAdmin@2026';

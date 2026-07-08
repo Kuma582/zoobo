@@ -153,11 +153,42 @@ export const verifyCashfreeDeposit = async (orderId: string) => {
   const res = await fetch(`${BASE_URL}/wallet/deposit/cashfree-verify`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ orderId }),
+    body: JSON.stringify({ order_id: orderId }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Failed to verify Cashfree deposit');
-  return data; // returns updated balance
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to verify Cashfree deposit');
+  }
+  return res.json();
+};
+
+export const createUPIGatewayOrder = async (amount: number) => {
+  const res = await fetch(`${BASE_URL}/wallet/deposit/upigateway-create`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ amount }),
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to initialize UPIGateway payment');
+  }
+  return res.json();
+};
+
+export const verifyUPIGatewayPayment = async (clientTxnId: string, txnDate: string) => {
+  const res = await fetch(`${BASE_URL}/wallet/deposit/upigateway-status`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ client_txn_id: clientTxnId, txn_date: txnDate }),
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Payment not verified yet or failed');
+  }
+  return res.json();
 };
 
 export const getAdminToken = () => localStorage.getItem('zoobo_admin_token');

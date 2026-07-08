@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Plus, History, CheckCircle2, Clock, Send, ChevronRight, X, Loader2, Copy, Download, AlertCircle, CreditCard, Landmark, RefreshCcw } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
-import { requestDeposit, submitDepositUtr, getDepositStatus, verifyRazorpayDeposit, createCashfreeOrder, verifyCashfreeDeposit } from '../api/client';
+import { requestDeposit, submitDepositUtr, getDepositStatus, verifyRazorpayDeposit, createCashfreeOrder, verifyCashfreeDeposit, createUPIGatewayOrder, verifyUPIGatewayPayment } from '../api/client';
 
 const Wallet = () => {
   const { balance, transactions, withdrawMoney, transferMoney, refreshWallet } = useWallet();
@@ -11,13 +11,16 @@ const Wallet = () => {
   const [targetId, setTargetId] = useState(''); // UPI ID or Username or Account Number
   const [accountName, setAccountName] = useState(''); // Account Holder Name
   const [ifscCode, setIfscCode] = useState(''); // IFSC Code
-  const [paymentStep, setPaymentStep] = useState<'input' | 'method_select' | 'qr' | 'utr_entry' | 'verifying' | 'success' | 'failed' | 'processing' | 'submitted'>('input');
+  const [paymentStep, setPaymentStep] = useState<'input' | 'method_select' | 'qr' | 'utr_entry' | 'verifying' | 'success' | 'failed' | 'processing' | 'submitted' | 'pay_upigateway'>('input');
   
   // Secure Deposit States
   const [currentTransactionId, setCurrentTransactionId] = useState<string | null>(null);
   const [utr, setUtr] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [timer, setTimer] = useState(600); // 10 minutes (600s)
+  const [clientTxnId, setClientTxnId] = useState('');
+  const [txnDate, setTxnDate] = useState('');
+  const [paymentUrl, setPaymentUrl] = useState('');
 
   const handleOpenModal = (type: 'add' | 'withdraw' | 'transfer') => {
     setActiveModal(type);
@@ -162,12 +165,39 @@ const Wallet = () => {
     }
   };
 
-  const handleSelectManualUPI = async () => {
+  const handleSelectUPIGateway = async () => {
     const parsedAmount = parseInt(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) return;
 
-    setTimer(600); // Reset 10 minutes countdown
-    setPaymentStep('qr');
+    setPaymentStep('processing');
+    try {
+      const orderRes = await createUPIGatewayOrder(parsedAmount);
+      setClientTxnId(orderRes.client_txn_id);
+      setTxnDate(orderRes.txn_date);
+      setPaymentUrl(orderRes.payment_url);
+      setPaymentStep('pay_upigateway');
+      
+      // Automatically open the payment page
+      if (orderRes.payment_url) {
+        window.open(orderRes.payment_url, '_blank');
+      }
+    } catch (err: any) {
+      console.error('UPIGateway Error', err);
+      alert(err.message || 'UPIGateway failed to load. Please try again.');
+      setPaymentStep('method_select');
+    }
+  };
+
+  const handleVerifyUPIGateway = async () => {
+    setPaymentStep('verifying');
+    try {
+      await verifyUPIGatewayPayment(clientTxnId, txnDate);
+      refreshWallet();
+      setPaymentStep('success');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Payment not completed or failed.');
+      setPaymentStep('failed');
+    }
   };
 
   const scrollToHistory = () => {
@@ -578,18 +608,18 @@ const Wallet = () => {
                       <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-white transition-colors" />
                     </button>
 
-                    {/* Manual UPI Option */}
+                    {/* UPIGateway Payment Option */}
                     <button 
-                      onClick={handleSelectManualUPI}
-                      className="w-full flex items-center justify-between bg-black/40 border border-white/5 hover:border-cyber-blue/50 p-4 rounded-2xl transition-all group"
+                      onClick={handleSelectUPIGateway}
+                      className="w-full flex items-center justify-between bg-black/40 border border-white/5 hover:border-[#2cba00]/50 p-4 rounded-2xl transition-all group"
                     >
                       <div className="flex items-center gap-3.5">
-                        <div className="w-10 h-10 rounded-xl bg-cyber-blue/10 flex items-center justify-center border border-cyber-blue/20 text-cyber-blue group-hover:scale-105 transition-transform">
+                        <div className="w-10 h-10 rounded-xl bg-[#2cba00]/10 flex items-center justify-center border border-[#2cba00]/20 text-[#2cba00] group-hover:scale-105 transition-transform">
                           <Landmark className="w-5 h-5" />
                         </div>
                         <div className="text-left">
-                          <div className="text-sm font-bold text-white">Manual UPI (QR Code & UTR)</div>
-                          <div className="text-[10px] text-gray-500">Scan QR code and enter 12-digit UTR manually</div>
+                          <div className="text-sm font-bold text-white">UPI Payment (QR Code)</div>
+                          <div className="text-[10px] text-gray-500">Pay via Google Pay, PhonePe, Paytm QR</div>
                         </div>
                       </div>
                       <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-white transition-colors" />
@@ -602,6 +632,39 @@ const Wallet = () => {
                   >
                     Go Back
                   </button>
+                </motion.div>
+              )}
+
+              {paymentStep === 'pay_upigateway' && activeModal === 'add' && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="w-full max-w-md mx-auto flex flex-col items-center py-2"
+                >
+                  <div className="flex justify-between items-center w-full mb-4">
+                    <h3 className="text-lg font-bold text-white">UPI Payment</h3>
+                  </div>
+                  
+                  <div className="text-3xl font-black text-white mb-2 tracking-tight">₹{amount}</div>
+                  
+                  {/* Instructions */}
+                  <div className="w-full text-left text-gray-400 text-xs space-y-2 bg-white/5 p-4 rounded-xl border border-white/5 mb-6">
+                    <p>1. If the payment page didn't open automatically, click <strong>"Open Payment Page"</strong> below.</p>
+                    <p>2. Complete the payment using your preferred UPI App (PhonePe, GPay, Paytm, etc).</p>
+                    <p>3. After payment is successful on the gateway, come back here and click <strong>"Verify Payment"</strong>.</p>
+                  </div>
+
+                  {/* QR Action buttons */}
+                  <div className="grid grid-cols-1 gap-3 w-full">
+                    {paymentUrl && (
+                      <button onClick={() => window.open(paymentUrl, '_blank')} className="py-4 px-4 rounded-xl font-bold text-xs uppercase bg-[#1a1a20] border border-white/10 text-gray-300 hover:text-white transition-all flex items-center justify-center gap-2">
+                        <ArrowUpRight className="w-4 h-4" /> Open Payment Page
+                      </button>
+                    )}
+                    <button onClick={handleVerifyUPIGateway} className="py-4 px-4 rounded-xl font-bold text-xs uppercase bg-[#2cba00] border-b-4 border-green-800 text-white shadow-lg hover:brightness-110 transition-all">
+                      I Have Paid — Verify Payment
+                    </button>
+                  </div>
                 </motion.div>
               )}
 
