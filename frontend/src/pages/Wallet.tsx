@@ -641,130 +641,39 @@ const Wallet = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   className="w-full max-w-md mx-auto flex flex-col items-center py-2"
                 >
-                  <div className="flex justify-between items-center w-full mb-4">
-                    <h3 className="text-lg font-bold text-white">UPI Payment</h3>
-                  </div>
-                  
-                  <div className="text-3xl font-black text-white mb-2 tracking-tight">₹{amount}</div>
-                  
-                  {/* Instructions */}
-                  <div className="w-full text-left text-gray-400 text-xs space-y-2 bg-white/5 p-4 rounded-xl border border-white/5 mb-6">
-                    <p>1. If the payment page didn't open automatically, click <strong>"Open Payment Page"</strong> below.</p>
-                    <p>2. Complete the payment using your preferred UPI App (PhonePe, GPay, Paytm, etc).</p>
-                    <p>3. After payment is successful on the gateway, come back here and click <strong>"Verify Payment"</strong>.</p>
-                  </div>
-
-                  {/* QR Action buttons */}
-                  <div className="grid grid-cols-1 gap-3 w-full">
-                    {paymentUrl && (
-                      <button onClick={() => window.open(paymentUrl, '_blank')} className="py-4 px-4 rounded-xl font-bold text-xs uppercase bg-[#1a1a20] border border-white/10 text-gray-300 hover:text-white transition-all flex items-center justify-center gap-2">
-                        <ArrowUpRight className="w-4 h-4" /> Open Payment Page
-                      </button>
-                    )}
-                    <button onClick={handleVerifyUPIGateway} className="py-4 px-4 rounded-xl font-bold text-xs uppercase bg-[#2cba00] border-b-4 border-green-800 text-white shadow-lg hover:brightness-110 transition-all">
-                      I Have Paid — Verify Payment
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-
-              {paymentStep === 'qr' && activeModal === 'add' && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="w-full max-w-md mx-auto flex flex-col items-center py-2"
-                >
-                  <div className="flex justify-between items-center w-full mb-4">
+                  <div className="flex justify-between items-center w-full mb-2">
                     <h3 className="text-lg font-bold text-white">Scan & Pay</h3>
-                    <div className="bg-red-500/20 px-3 py-1 rounded-full border border-red-500/30 text-xs font-mono font-black text-red-400">
-                      Timer: {formatTimer(timer)}
-                    </div>
+                    <button onClick={handleVerifyUPIGateway} className="text-xs bg-[#2cba00] px-3 py-1.5 rounded-full text-white font-bold hover:brightness-110">
+                       I Have Paid 
+                    </button>
                   </div>
-
-                  <div className="bg-white p-3 rounded-2xl mb-4 shadow-[0_0_30px_rgba(255,255,255,0.15)] flex justify-center">
-                    <div className="w-40 h-40 overflow-hidden rounded-xl">
-                      <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`upi://pay?pa=${UPI_ID}&pn=Zoobo&am=${amount}&cu=INR`)}`} 
-                        alt="UPI QR Code" 
-                        className="w-full h-full object-cover" 
+                  
+                  {/* Embedded UPIGateway Payment Page (which shows their dynamic QR) */}
+                  {paymentUrl ? (
+                    <div className="w-full bg-white rounded-xl overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.1)] mb-4">
+                      <iframe 
+                        src={paymentUrl} 
+                        className="w-full h-[400px] border-none"
+                        title="UPI Payment Gateway"
                       />
                     </div>
-                  </div>
+                  ) : (
+                    <div className="w-full h-[400px] flex items-center justify-center text-gray-500">Loading Payment Gateway...</div>
+                  )}
                   
-                  <div className="text-3xl font-black text-white mb-2 tracking-tight">₹{amount}</div>
-                  
-                  {/* UPI Details Box removed as requested by the user */}
-
-                  {/* Instructions */}
-                  <div className="w-full text-left text-gray-400 text-[10px] space-y-1 bg-white/5 p-3 rounded-xl border border-white/5 mb-6">
-                    <div className="font-bold text-white uppercase text-[9px] mb-1">Instructions:</div>
-                    <p>1. Open <strong className="text-white">any UPI app</strong> (PhonePe, GPay, Paytm, etc.) and scan the QR code above.</p>
-                    <p>2. Pay exactly <strong className="text-white">₹{amount}</strong> — enter the amount manually if needed.</p>
-                    <p>3. After payment, find the <strong className="text-white">UTR / UPI Ref No.</strong> in your payment receipt.</p>
-                    <p>4. Click <strong className="text-cyber-purple">"I Have Paid"</strong> and enter that reference number below.</p>
-                  </div>
-
-                  {/* QR Action buttons */}
-                  <div className="grid grid-cols-2 gap-3 w-full">
-                    <button onClick={handleDownloadQR} className="py-3 px-4 rounded-xl font-bold text-xs uppercase bg-[#1a1a20] border border-white/10 text-gray-300 hover:text-white transition-all flex items-center justify-center gap-2">
-                      <Download className="w-4 h-4" /> Download QR
-                    </button>
-                    <button onClick={() => setPaymentStep('utr_entry')} className="py-3 px-4 rounded-xl font-bold text-xs uppercase bg-[#2cba00] border-b-4 border-green-800 text-white shadow-lg hover:brightness-110 transition-all">
-                      I Have Paid
-                    </button>
+                  <div className="w-full text-left text-gray-400 text-xs space-y-2 bg-white/5 p-4 rounded-xl border border-white/5">
+                    <p>1. Scan the QR code above using your preferred UPI App.</p>
+                    <p>2. After successful payment, click the green <strong>"I Have Paid"</strong> button at the top to verify.</p>
+                    <div className="flex justify-center mt-2">
+                      <button onClick={() => window.open(paymentUrl, '_blank')} className="text-cyber-blue hover:underline text-[10px]">
+                        Or open in new tab
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
               )}
 
-              {paymentStep === 'utr_entry' && activeModal === 'add' && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="w-full max-w-md mx-auto flex flex-col items-center py-4"
-                >
-                  <h3 className="text-xl font-bold text-white mb-2">Enter Payment UTR</h3>
-                  <p className="text-gray-400 text-xs text-center mb-6">Please enter the 12-digit UPI Transaction Reference (UTR) number to verify your payment.</p>
-                  
-                  <form onSubmit={handleSubmitUTR} className="w-full">
-                    <div className="mb-4">
-                      <input 
-                        type="text" 
-                        maxLength={16}
-                        value={utr}
-                        onChange={(e) => setUtr(e.target.value.replace(/\D/g, ''))}
-                        placeholder="Enter UTR / UPI Ref No. (10-16 digits)"
-                        className="w-full bg-black/60 border-2 border-white/10 rounded-xl py-3 px-4 text-white text-center font-mono font-bold tracking-widest focus:outline-none focus:border-cyber-purple transition-all"
-                        required
-                      />
-                      {errorMsg && (
-                        <p className="text-red-500 text-xs font-bold text-center mt-2 flex items-center justify-center gap-1.5">
-                          <AlertCircle className="w-3.5 h-3.5" /> {errorMsg}
-                        </p>
-                      )}
-                    </div>
 
-                    <div className="flex gap-3 w-full">
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          setErrorMsg('');
-                          setPaymentStep('qr');
-                        }}
-                        className="flex-1 py-3.5 bg-[#1a1a20] border border-white/10 text-gray-300 text-xs font-bold uppercase rounded-xl"
-                      >
-                        Go Back
-                      </button>
-                      <button 
-                        type="submit"
-                        disabled={utr.length < 10 || utr.length > 16}
-                        className="flex-1 py-3.5 bg-[#2cba00] border-b-4 border-green-800 disabled:opacity-40 text-white text-xs font-bold uppercase rounded-xl shadow-lg"
-                      >
-                        Submit UTR
-                      </button>
-                    </div>
-                  </form>
-                </motion.div>
-              )}
 
               {paymentStep === 'verifying' && (
                 <motion.div 
